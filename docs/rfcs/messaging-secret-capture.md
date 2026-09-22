@@ -12,7 +12,7 @@ Add platform-neutral secret capture to messaging gateways. Secret value is consu
 
 First implementation targets Matrix messages. Broader platform support can follow through same base interface.
 
-This is not blanket permission for model to copy arbitrary chat text into secret storage. Capture must start from structured setup metadata and create one pending secret-entry request. The next inbound text response on the owning profile is consumed as the value.
+Capture is never implicit from ordinary chat. Model may create an explicit pending secret-entry request for any valid destination environment-variable name; skill setup metadata is optional. The next inbound text response on the owning profile is consumed as the value.
 
 ## Existing Architecture
 
@@ -108,8 +108,8 @@ If no structured secret-entry prompt is pending, message remains ordinary chat i
 
 Initial Matrix implementation requires:
 
-- a pending secret-entry request created from structured local skill metadata;
-- variable name declared by `setup.collect_secrets` or structured `required_environment_variables`;
+- a pending secret-entry request created through explicit secure capture;
+- any valid destination environment-variable name requested through explicit capture;
 - variable name passes existing `_ENV_VAR_NAME_RE` and denylist;
 - no managed-scope override;
 - adapter can intercept inbound text before normal dispatch;
@@ -432,7 +432,7 @@ Internal logs use same bounded codes. Never log raw exception if it can include 
 
 Use temp `HERMES_HOME` and real state DB/config loaders:
 
-1. load fixture skill with `setup.collect_secrets`;
+1. request arbitrary fixture destination through the secure capture tool (skill metadata optional);
 2. simulate Matrix secret flow;
 3. assert `.env` mode and exact profile location;
 4. assert no secret in state DB messages/system prompts/routing JSON/log capture;

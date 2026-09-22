@@ -776,7 +776,9 @@ class TestPromptBuilderConstants:
 
     def test_matrix_hint_teaches_secure_chat_credential_capture(self):
         hint = PLATFORM_HINTS["matrix"]
-        assert "secure gateway credential-capture flow" in hint
+        assert "request_secret_capture" in hint
+        assert "any valid destination environment-variable name" in hint
+        assert "skill setup metadata is not required" in hint
         assert "tools.credential_files" in hint
         assert "does not read raw chat secrets" in hint
         assert "do not repeat, log, or expose" in hint

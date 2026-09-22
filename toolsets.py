@@ -23,7 +23,7 @@ _HERMES_CORE_TOOLS = [
     "text_to_speech",
     "todo_list", "memory",
     "session_search",
-    "clarify",
+    "clarify", "request_secret_capture",
     "execute_code", "delegate_task",
     "cronjob_manage",
     "kanban_show", "kanban_list",
