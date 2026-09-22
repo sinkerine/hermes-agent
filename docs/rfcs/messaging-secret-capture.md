@@ -12,7 +12,7 @@ Add platform-neutral secret capture to messaging gateways. Secret value is consu
 
 First implementation targets Matrix messages. Broader platform support can follow through same base interface.
 
-This is not blanket permission for model to copy arbitrary chat text into secret storage. Capture must start from structured setup metadata and create one pending secret-entry request. The next eligible inbound text response is consumed as the value.
+This is not blanket permission for model to copy arbitrary chat text into secret storage. Capture must start from structured setup metadata and create one pending secret-entry request. The next inbound text response on the owning profile is consumed as the value.
 
 ## Existing Architecture
 
@@ -37,7 +37,7 @@ Current block is explicit:
 1. Let a user satisfy `setup.collect_secrets` from a supported messaging platform.
 2. Keep raw secret outside model context, session DB, tool transcript, logs, notifications, and error text.
 3. Persist through existing secure/profile-aware credential lifecycle.
-4. Use one secret-entry prompt with no separate consent step.
+4. Use one secret-entry prompt with no separate consent step; allow one pending capture per profile.
 5. Reuse gateway prompt architecture; add no model-facing core tool.
 6. Preserve prompt caching and message-role alternation.
 7. Route the response to the pending capture without exposing the value to the model.
@@ -115,7 +115,7 @@ Initial Matrix implementation requires:
 - adapter can intercept inbound text before normal dispatch;
 - encrypted and unencrypted Matrix rooms follow the same flow.
 
-No sender, room, thread, explicit reply target, profile, session, or expiry validation is required for accepting the value. These fields may be retained only as internal routing context needed to deliver the prompt and select the destination `.env`; they are not authorization checks and require no user configuration.
+No sender, room, thread, explicit reply target, session, or expiry validation is required for accepting the value. The owning profile is internal routing context used to select the destination `.env`; it is not user authorization or enablement configuration. Matrix adapters consume only their own profile's pending capture.
 
 Secret collection uses one prompt. Sending the value is the action that authorizes storage. Terminal `/yolo`, reaction approval, and a separate consent prompt are not involved.
 
@@ -183,7 +183,7 @@ register_notify(callback)
 unregister_notify(callback)
 ```
 
-Registry must be lock-protected. Because no sender/room/thread/session binding is enforced, allow only one unresolved secret capture per gateway process. A second request fails as busy rather than ambiguously consuming a message for the wrong destination.
+Registry must be lock-protected. Because no sender/room/thread/session binding is enforced, allow only one unresolved secret capture per profile. A second request in that profile fails as busy; profile routing prevents consuming a message for the wrong destination.
 
 Result never contains value:
 
@@ -203,7 +203,7 @@ class SecretCaptureResult:
 
 Preferred change:
 
-Use one process-wide callback and one process-wide pending capture. This matches the requested no-binding behavior while preventing two simultaneous requests from racing. The callback receives an immutable destination home resolved when the skill requests capture.
+Use a turn-scoped callback and one pending capture per profile. The callback receives an immutable destination home resolved when the skill requests capture; Matrix adapters route by that home.
 
 `_capture_required_environment_variables()` should:
 
@@ -243,7 +243,7 @@ During gateway construction, register one secret notify callback next to existin
 Agent-thread callback:
 
 1. validates metadata/spec and resolves destination profile home;
-2. atomically registers the sole pending capture or returns `busy`;
+2. atomically registers the profile's pending capture or returns `busy`;
 3. schedules the single secret-entry prompt on event loop;
 4. blocks until one value is received or gateway shuts down;
 5. returns metadata-only result;
@@ -265,19 +265,19 @@ Add interception near clarify response handling in `gateway/run.py`, before:
 - title generation;
 - compression/memory.
 
-However current generic inbound log occurs late in `_handle_message`; Matrix adapter may batch text before gateway sees it. Adapter therefore checks the process-wide pending-secret slot before `_enqueue_text_event()`. Generic gateway owns persistence; adapter calls the common resolver.
+However current generic inbound log occurs late in `_handle_message`; Matrix adapter may batch text before gateway sees it. Adapter therefore checks its profile-owned pending-secret slot before `_enqueue_text_event()`. Generic gateway owns persistence; adapter calls the common resolver.
 
 Required order for Matrix message:
 
-1. run existing platform authorization and event deduplication;
-2. check whether one process-wide secret capture is pending;
-3. if pending, consume the next non-command text message and do not enqueue or dispatch it;
+1. decode the inbound text event;
+2. check whether this adapter's profile has a pending secret capture;
+3. if pending, consume the next text message and do not enqueue or dispatch it;
 4. attempt to redact source event;
 5. persist value to the destination home captured when prompt was created;
 6. send metadata-only acknowledgement;
 7. return.
 
-Commands such as `/stop` or `/cancel`, bot/system messages, media, edits, and empty values are not accepted as secret values. No sender, room, thread, reply-target, session, profile, or expiry match is performed.
+Pending capture consumes text commands like `/stop` or `/cancel` as values before normal control dispatch. Bot-self events and media never enter this text path; edits are dropped while leaving capture pending. Empty/oversized text fails capture without persistence. No sender, room, thread, reply-target, session, profile, or expiry match is performed.
 
 ### 6. Matrix implementation
 
@@ -285,7 +285,7 @@ Add `_MatrixSecretPrompt` state or reuse platform-neutral registry plus Matrix p
 
 Matrix sends the secret-entry prompt directly. No reactions, buttons, consent prompt, or explicit reply relation are required.
 
-Upon the next eligible text message while a capture is pending:
+Upon the next text message on the owning profile while a capture is pending:
 
 - bypass normal text batching;
 - redact source event using internal adapter method regardless of model-facing `MATRIX_TOOLS_ALLOW_REDACTION` toggle; this is product-internal lifecycle cleanup, not agent tool permission;
@@ -358,8 +358,8 @@ Matrix secret capture requires no user configuration. Initial behavior is fixed:
 
 - identical flow for encrypted and unencrypted rooms;
 - no sender, room, thread, reply-target, profile, session, or expiry checks;
-- one process-wide pending capture maximum;
-- next eligible non-command text message supplies value;
+- one pending capture maximum per profile;
+- next text message on the owning adapter supplies value;
 - source redaction attempted best effort;
 - 16 KiB maximum value size.
 
@@ -385,12 +385,12 @@ Internal logs use same bounded codes. Never log raw exception if it can include 
 
 - Registry guarded by lock.
 - Capture ID cryptographically random.
-- Exactly one pending capture allowed per gateway process because no routing bindings are enforced.
+- Exactly one pending capture allowed per profile; profile routing prevents cross-profile consumption.
 - A second capture request returns `busy` and does not replace the first.
 - `/cancel`, `/stop`, or gateway shutdown cancels pending capture without treating command text as secret.
 - Duplicate Matrix delivery by event ID is idempotent.
 - Resolver supports exactly-once persistence via `pending -> consuming -> stored|failed|cancelled`.
-- Empty, oversized, media, edited, batched, bot/system, or command messages do not resolve capture.
+- Empty and oversized text resolve as metadata-only failure; media is not a text capture path; bot-self messages are ignored. Commands, threads, and rooms are ordinary text for capture.
 - Python strings cannot be reliably zeroized. Avoid copying value and do not claim memory erasure; drop references best-effort after persistence.
 
 ## Test Plan
@@ -400,7 +400,7 @@ Internal logs use same bounded codes. Never log raw exception if it can include 
 - register/wait/resolve happy path;
 - value absent from result object and repr;
 - no sender/room/thread/reply/profile/session/expiry matching occurs;
-- one global pending slot enforced;
+- one profile-owned pending slot enforced;
 - second request returns `busy`;
 - duplicate resolve idempotent;
 - cancellation unblocks waiter;
@@ -418,9 +418,9 @@ Internal logs use same bounded codes. Never log raw exception if it can include 
 
 ### Unit: Matrix adapter
 
-- next eligible text event resolves pending capture regardless of sender, room, thread, reply relation, profile, or session;
+- next text event on the owning adapter resolves pending capture regardless of sender, room, thread, reply relation, or session;
 - encrypted and unencrypted rooms resolve through same path;
-- command/media/edit/empty/bot events do not resolve capture;
+- commands and threaded text resolve capture; media and bot-self events do not; edits leave capture pending; empty values fail metadata-only;
 - source message redacted before persistence callback when possible;
 - redaction failure does not block persistence;
 - secret message never enters text batch or `handle_message`;
@@ -463,7 +463,7 @@ Test random key shape that generic redactor does not recognize. This proves rout
 - no feature configuration required;
 - structured skill setup only;
 - one secret-entry prompt, no separate consent;
-- next eligible process-wide inbound text supplies value;
+- next inbound text on the owning profile supplies value;
 - no sender/room/thread/reply/profile/session/expiry checks;
 - encrypted and unencrypted rooms use equivalent flow;
 - source redaction is always best-effort cleanup;
@@ -520,9 +520,9 @@ Implement Phase 1 with strict defaults:
 - Matrix first;
 - encrypted and unencrypted rooms use equivalent behavior;
 - one secret-entry prompt, no separate consent or approval;
-- next eligible process-wide inbound text supplies value;
+- next inbound text on the owning profile supplies value;
 - no sender, room, thread, reply-target, profile, session, or expiry checks;
-- exactly one pending capture per gateway process;
+- exactly one pending capture per profile;
 - source redaction attempted immediately as best-effort cleanup;
 - structured skill-declared env vars only;
 - adapter-level interception before batching/logging;
