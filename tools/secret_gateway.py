@@ -1,7 +1,7 @@
-"""Process-wide secret capture primitive for messaging gateways.
+"""Profile-routed secret capture primitive for messaging gateways.
 
-One pending capture is allowed per process. The inbound adapter consumes the
-next eligible text value before normal dispatch and resolves this entry.
+One pending capture is allowed per profile. Inbound adapters consume the next
+text value for their profile before normal dispatch.
 """
 from __future__ import annotations
 
@@ -34,8 +34,13 @@ class SecretCaptureEntry:
 
 
 _lock = threading.RLock()
-_pending: SecretCaptureEntry | None = None
+_pending_by_home: dict[str, SecretCaptureEntry] = {}
 _notify: Optional[Callable[[SecretCaptureEntry], bool]] = None
+
+
+def _home_key(home: str) -> str:
+    from hermes_constants import hermes_home_key
+    return hermes_home_key(home)
 
 
 def set_notify_callback(callback: Optional[Callable[[SecretCaptureEntry], bool]]) -> None:
@@ -53,10 +58,14 @@ def register(
     handler: Callable[[str, bool], SecretCaptureResult],
     notify: Optional[Callable[[SecretCaptureEntry], bool]] = None,
 ) -> SecretCaptureEntry | None:
-    """Register sole pending capture. Return None when another is active."""
-    global _pending
+    """Register one pending capture for ``destination_home``.
+
+    A second capture in the same profile is busy; profiles do not contend.
+    """
     with _lock:
-        if _pending is not None and _pending.state == "pending":
+        home_key = _home_key(destination_home)
+        existing = _pending_by_home.get(home_key)
+        if existing is not None and existing.state == "pending":
             return None
         entry = SecretCaptureEntry(
             capture_id=uuid.uuid4().hex,
@@ -66,7 +75,7 @@ def register(
             destination_home=destination_home,
             handler=handler,
         )
-        _pending = entry
+        _pending_by_home[home_key] = entry
         notify = notify or _notify
     if notify is not None:
         try:
@@ -79,18 +88,19 @@ def register(
     return entry
 
 
-def get_pending() -> SecretCaptureEntry | None:
+def get_pending(destination_home: str | None = None) -> SecretCaptureEntry | None:
     with _lock:
-        if _pending is None or _pending.state != "pending":
-            return None
-        return _pending
+        if destination_home is not None:
+            entry = _pending_by_home.get(_home_key(destination_home))
+            return entry if entry is not None and entry.state == "pending" else None
+        entries = [entry for entry in _pending_by_home.values() if entry.state == "pending"]
+        return entries[0] if len(entries) == 1 else None
 
 
 def resolve_with_value(capture_id: str, value: str, *, redacted: bool = False) -> SecretCaptureResult:
-    global _pending
     with _lock:
-        entry = _pending
-        if entry is None or entry.capture_id != capture_id or entry.state != "pending":
+        entry = next((item for item in _pending_by_home.values() if item.capture_id == capture_id), None)
+        if entry is None or entry.state != "pending":
             return SecretCaptureResult(False, "", error_code="no_pending_capture")
         entry.state = "consuming"
     try:
@@ -101,20 +111,33 @@ def resolve_with_value(capture_id: str, value: str, *, redacted: bool = False) -
         entry.result = result
         entry.state = "stored" if result.success else "failed"
         entry.event.set()
-        _pending = None
+        _pending_by_home.pop(_home_key(entry.destination_home), None)
     return result
 
 
-def cancel(capture_id: str, reason: str = "cancelled") -> bool:
-    global _pending
+def reject(capture_id: str, reason: str = "invalid_value") -> SecretCaptureResult:
+    """Finish a capture without handing an invalid inbound value to its handler."""
     with _lock:
-        entry = _pending
-        if entry is None or entry.capture_id != capture_id:
+        entry = next((item for item in _pending_by_home.values() if item.capture_id == capture_id), None)
+        if entry is None or entry.state != "pending":
+            return SecretCaptureResult(False, "", error_code="no_pending_capture")
+        result = SecretCaptureResult(False, entry.env_var, error_code=reason)
+        entry.state = "failed"
+        entry.result = result
+        entry.event.set()
+        _pending_by_home.pop(_home_key(entry.destination_home), None)
+        return result
+
+
+def cancel(capture_id: str, reason: str = "cancelled") -> bool:
+    with _lock:
+        entry = next((item for item in _pending_by_home.values() if item.capture_id == capture_id), None)
+        if entry is None:
             return False
         entry.state = "cancelled"
         entry.result = SecretCaptureResult(False, entry.env_var, skipped=True, error_code=reason)
         entry.event.set()
-        _pending = None
+        _pending_by_home.pop(_home_key(entry.destination_home), None)
         return True
 
 
@@ -125,10 +148,18 @@ def wait(entry: SecretCaptureEntry) -> SecretCaptureResult:
 
 def clear() -> None:
     with _lock:
-        entry = _pending
-    if entry is not None:
+        entries = list(_pending_by_home.values())
+    for entry in entries:
         cancel(entry.capture_id, "gateway_shutdown")
 
 
+def cancel_for_home(destination_home: str, reason: str = "gateway_shutdown") -> bool:
+    """Cancel the capture owned by one profile, without touching other profiles."""
+    with _lock:
+        entry = _pending_by_home.get(_home_key(destination_home))
+    return entry is not None and cancel(entry.capture_id, reason)
+
+
 def has_pending() -> bool:
-    return get_pending() is not None
+    with _lock:
+        return any(entry.state == "pending" for entry in _pending_by_home.values())

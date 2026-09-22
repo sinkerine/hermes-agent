@@ -29,9 +29,19 @@ def test_single_pending_capture_and_metadata_only_result():
         env_var="OTHER_KEY",
         prompt="Other",
         skill_name=None,
-        destination_home="/tmp/other",
+        destination_home="/tmp/entertainment",
         handler=handler,
     ) is None
+
+    other = secret_gateway.register(
+        env_var="OTHER_KEY",
+        prompt="Other",
+        skill_name=None,
+        destination_home="/tmp/other",
+        handler=handler,
+    )
+    assert other is not None
+    secret_gateway.cancel(other.capture_id, "test_cleanup")
 
     result_holder = []
     thread = threading.Thread(target=lambda: result_holder.append(secret_gateway.wait(entry)))
@@ -88,3 +98,23 @@ def test_persistence_failure_returns_metadata_only():
     assert result.success is False
     assert result.error_code == "persistence_failed"
     assert "fixture-secret-value" not in repr(result)
+
+
+def test_profiles_have_independent_pending_captures():
+    seen = []
+    first = secret_gateway.register(
+        env_var="PROFILE_A_KEY", prompt="a", skill_name=None, destination_home="/tmp/profile-a",
+        handler=lambda value, redacted: seen.append(("a", value)) or
+        secret_gateway.SecretCaptureResult(True, "PROFILE_A_KEY"),
+    )
+    second = secret_gateway.register(
+        env_var="PROFILE_B_KEY", prompt="b", skill_name=None, destination_home="/tmp/profile-b",
+        handler=lambda value, redacted: seen.append(("b", value)) or
+        secret_gateway.SecretCaptureResult(True, "PROFILE_B_KEY"),
+    )
+    assert first is not None and second is not None
+    assert secret_gateway.get_pending("/tmp/profile-a") is first
+    assert secret_gateway.get_pending("/tmp/profile-b") is second
+    assert secret_gateway.resolve_with_value(second.capture_id, "b-secret").success
+    assert secret_gateway.resolve_with_value(first.capture_id, "a-secret").success
+    assert seen == [("b", "b-secret"), ("a", "a-secret")]

@@ -9,6 +9,7 @@ import threading
 import pytest
 
 from tools import secret_gateway
+from hermes_constants import get_hermes_home
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ async def test_pending_value_consumed_before_message_event(matrix_adapter):
     seen = []
     entry = secret_gateway.register(
         env_var="FIXTURE_CAPTURE_KEY", prompt="Enter fixture key", skill_name="fixture",
-        destination_home="/tmp/fixture-profile",
+        destination_home=str(get_hermes_home()),
         handler=lambda value, redacted: (
             seen.append((value, redacted)) or secret_gateway.SecretCaptureResult(True, "FIXTURE_CAPTURE_KEY")))
     await matrix_adapter._handle_text_message(
@@ -57,6 +58,58 @@ async def test_without_pending_capture_normal_message_dispatches(matrix_adapter)
         "!room:example.org", "@alice:example.org", "$normal", 0,
         {"body": "ordinary fixture text", "msgtype": "m.text"}, {})
     matrix_adapter.handle_message.assert_awaited_once()
+
+
+@pytest.mark.anyio
+async def test_without_pending_capture_keeps_room_authorization(matrix_adapter, monkeypatch):
+    monkeypatch.setattr(matrix_adapter, "_is_allowed_matrix_room_event", AsyncMock(return_value=False))
+    event = SimpleNamespace(
+        room_id="!blocked:example.org", sender="@alice:example.org", event_id="$blocked",
+        content={"body": "ordinary fixture text", "msgtype": "m.text"},
+    )
+    await matrix_adapter._on_room_message(event)
+    matrix_adapter.handle_message.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_pending_capture_precedes_room_and_mention_authorization(matrix_adapter, monkeypatch):
+    seen = []
+    entry = secret_gateway.register(
+        env_var="FIXTURE_CAPTURE_KEY", prompt="Enter fixture key", skill_name="fixture",
+        destination_home=str(get_hermes_home()),
+        handler=lambda value, redacted: (
+            seen.append(value) or secret_gateway.SecretCaptureResult(True, "FIXTURE_CAPTURE_KEY")),
+    )
+    matrix_adapter._ignored_user_patterns = [__import__("re").compile("alice")]
+    matrix_adapter._allowed_rooms = {"!other:example.org"}
+    matrix_adapter._allowed_room_ids = set(matrix_adapter._allowed_rooms)
+    matrix_adapter._require_mention = True
+    monkeypatch.setattr(matrix_adapter, "_is_allowed_matrix_room_event", AsyncMock(return_value=False))
+    event = SimpleNamespace(
+        room_id="!room:example.org", sender="@alice:example.org", event_id="$event",
+        content={"body": "room-secret", "msgtype": "m.text", "m.relates_to": {"rel_type": "m.thread", "event_id": "$root"}},
+    )
+    await matrix_adapter._on_room_message(event)
+    assert seen == ["room-secret"]
+    matrix_adapter.handle_message.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_pending_capture_uses_same_path_for_decrypted_encrypted_event(matrix_adapter):
+    seen = []
+    entry = secret_gateway.register(
+        env_var="FIXTURE_CAPTURE_KEY", prompt="Enter fixture key", skill_name="fixture",
+        destination_home=str(get_hermes_home()),
+        handler=lambda value, redacted: (
+            seen.append(value) or secret_gateway.SecretCaptureResult(True, "FIXTURE_CAPTURE_KEY")),
+    )
+    event = SimpleNamespace(
+        room_id="!encrypted:example.org", sender="@alice:example.org", event_id="$encrypted",
+        content={"body": "encrypted-secret", "msgtype": "m.text", "m.relates_to": {"rel_type": "m.thread", "event_id": "$root"}},
+    )
+    await matrix_adapter._on_room_message(event)
+    assert seen == ["encrypted-secret"]
+    matrix_adapter.handle_message.assert_not_awaited()
 
 
 def test_turn_callback_registers_prompt_and_returns_no_value(monkeypatch, tmp_path):
@@ -95,6 +148,17 @@ def test_turn_callback_registers_prompt_and_returns_no_value(monkeypatch, tmp_pa
     assert sent[0][0] == "!room:example.org"
     assert sent[0][1].startswith("Reply with the Enter fixture key.")
     assert "before model dispatch" in sent[0][1]
+
+
+def test_matrix_adapter_owner_profile_routes_capture_home(monkeypatch, tmp_path):
+    from gateway.config import PlatformConfig
+    from plugins.platforms.matrix.adapter import MatrixAdapter
+
+    profile_home = tmp_path / "profiles" / "entertainment"
+    monkeypatch.setattr("hermes_cli.profiles.get_profile_dir", lambda name: profile_home)
+    adapter = MatrixAdapter(PlatformConfig(enabled=True, token="fixture-token", extra={}))
+    adapter.set_owner_profile("entertainment")
+    assert adapter._capture_home == str(profile_home)
 
 
 def _completed_future(coro):
