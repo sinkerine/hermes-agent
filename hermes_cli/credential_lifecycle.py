@@ -183,7 +183,9 @@ def save_provider_env_credential(env_var: str, value: str) -> dict[str, Any]:
     # scrub below would still move the new value into config.yaml.
     require_env_writable(env_var, "set")
     old_value = load_env().get(env_var)
-    save_env_value(env_var, value)
+    saved = save_env_value(env_var, value)
+    if saved is False:
+        raise PermissionError(f"credential was not stored: {env_var}")
 
     config_updates: list[str] = []
     if value and old_value and old_value != value:

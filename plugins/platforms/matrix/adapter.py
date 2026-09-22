@@ -2193,8 +2193,8 @@ class MatrixAdapter(BasePlatformAdapter):
                     mention_claimed=True)
                 self._background_read_receipt(room_id, event_id)  # the claim receipted the voice
                 return
-        msg_event = await self._build_inbound_event(
-            room_id, sender, event_id, _normalize_matrix_bang_command(body), source_content, relates_to)
+        normalized = _normalize_matrix_bang_command(body)
+        msg_event = await self._build_inbound_event(room_id, sender, event_id, normalized, source_content, relates_to)
         if msg_event is None:
             return
         if msg_event.message_type == MessageType.TEXT and self._text_batch_delay_seconds > 0:
