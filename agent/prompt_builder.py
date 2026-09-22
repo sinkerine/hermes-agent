@@ -676,7 +676,8 @@ _LOCAL_CRON_DELIVERY_NOTE = (
 _MESSAGING_CREDENTIAL_CAPTURE_GUIDANCE = (
     "Credential handling: when a user supplies an API key, token, or other secret in chat after setup asks for it, "
     "do not repeat, log, or expose the value, and do not refuse solely because it arrived through chat. Use Hermes' "
-    "secure gateway credential-capture flow through the skill setup/readiness path; the captured value is persisted to "
+    "secure gateway credential-capture flow through the skill setup/readiness path; only that prompted response is "
+    "persisted to "
     "the active profile without returning it to the model. `tools.credential_files` registers existing credential files "
     "for sandbox mounts; it does not read raw chat secrets, so never use it to read `.env`, `auth.json`, or other "
     "master credential stores."

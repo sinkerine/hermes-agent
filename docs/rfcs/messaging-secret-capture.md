@@ -1,6 +1,6 @@
 # Secure Secret Capture over Messaging Gateways
 
-**Status:** Proposed
+**Status:** Implemented (Matrix first implementation)
 
 **Primary consumer:** skill `setup.collect_secrets` on Matrix and other messaging gateways
 
@@ -23,7 +23,8 @@ Hermes already has most required pieces:
 - `save_env_value_secure()` routes through unified credential lifecycle and profile-aware `.env` handling (`hermes_cli/config.py`, `hermes_cli/credential_lifecycle.py`).
 - Gateway clarify prompts already implement register → notify → block → resolve → timeout with per-session state (`tools/clarify_gateway.py`).
 - Matrix already implements sender-bound reaction approvals, expiry, prompt cleanup, and redaction (`plugins/platforms/matrix/adapter.py`).
-- Gateway has pre-agent interception for clarify responses (`gateway/run.py`).
+- Gateway has pre-agent interception for clarify responses (`gateway/run.py`) and a turn-scoped
+  structured secret callback wired through the current delivery adapter.
 
 Current block is explicit:
 

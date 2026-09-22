@@ -10,6 +10,7 @@ import logging
 import os
 import time
 from contextlib import contextmanager, suppress
+from contextvars import ContextVar, Token
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -77,6 +78,7 @@ def _skills_dir() -> Path:
 
 
 _secret_capture_callback = None
+_secret_capture_callback_ctx: ContextVar[Any] = ContextVar("_secret_capture_callback_ctx", default=None)
 _LOOKUP_HINT = "Use a skill name or relative path within the skills directory."
 
 
@@ -112,19 +114,29 @@ def set_secret_capture_callback(callback) -> None:
     _secret_capture_callback = callback
 
 
-# A turn-scoped capture callback (the session owner binds one per local-viewer turn): it wins over the
-# process-global slot and over the gateway-surface "unsupported" hint, because that turn's viewer can
-# answer. A ContextVar, so tool worker threads started with ``propagate_context_to_thread`` inherit it.
+# A turn-scoped callback wins over the process-global CLI/TUI callback. ContextVars propagate
+# into tool worker threads and keep concurrent gateway turns isolated.
 _turn_secret_capture = contextvars.ContextVar("turn_secret_capture", default=None)
 
 
-@contextmanager
 def bind_turn_secret_capture(callback):
-    token = _turn_secret_capture.set(callback)
-    try:
-        yield
-    finally:
-        _turn_secret_capture.reset(token)
+    """Bind a callback for the current turn and return its reset token."""
+    return _turn_secret_capture.set(callback)
+
+
+def bind_secret_capture_callback(callback) -> Token:
+    return _secret_capture_callback_ctx.set(callback)
+
+
+def reset_secret_capture_callback(token: Token) -> None:
+    _secret_capture_callback_ctx.reset(token)
+
+
+def get_secret_capture_callback():
+    callback = _secret_capture_callback_ctx.get()
+    if callback is None:
+        callback = _turn_secret_capture.get()
+    return callback if callback is not None else _secret_capture_callback
 
 
 def _skill_utils_delegate(attr: str):

@@ -62,3 +62,29 @@ def test_cancel_unblocks_waiter_without_secret_in_result():
     thread.join(timeout=2)
     assert result_holder[0].skipped is True
     assert result_holder[0].error_code == "cancelled"
+
+
+def test_capture_callback_binding_is_context_local(monkeypatch):
+    from tools import skills_tool
+
+    old = skills_tool._secret_capture_callback
+    monkeypatch.setattr(skills_tool, "_secret_capture_callback", None)
+    token = skills_tool.bind_secret_capture_callback(lambda *_args: {"success": True})
+    try:
+        assert skills_tool.get_secret_capture_callback() is not None
+    finally:
+        skills_tool.reset_secret_capture_callback(token)
+    assert skills_tool.get_secret_capture_callback() is None
+    monkeypatch.setattr(skills_tool, "_secret_capture_callback", old)
+
+
+def test_persistence_failure_returns_metadata_only():
+    entry = secret_gateway.register(
+        env_var="FIXTURE_CAPTURE_KEY", prompt="fixture", skill_name="fixture",
+        destination_home="/tmp/fixture-profile",
+        handler=lambda value, redacted: secret_gateway.SecretCaptureResult(
+            False, "FIXTURE_CAPTURE_KEY", error_code="persistence_failed"))
+    result = secret_gateway.resolve_with_value(entry.capture_id, "fixture-secret-value")
+    assert result.success is False
+    assert result.error_code == "persistence_failed"
+    assert "fixture-secret-value" not in repr(result)
