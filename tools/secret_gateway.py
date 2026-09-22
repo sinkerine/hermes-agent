@@ -51,6 +51,7 @@ def register(
     skill_name: str | None,
     destination_home: str,
     handler: Callable[[str, bool], SecretCaptureResult],
+    notify: Optional[Callable[[SecretCaptureEntry], bool]] = None,
 ) -> SecretCaptureEntry | None:
     """Register sole pending capture. Return None when another is active."""
     global _pending
@@ -66,7 +67,7 @@ def register(
             handler=handler,
         )
         _pending = entry
-        notify = _notify
+        notify = notify or _notify
     if notify is not None:
         try:
             if not notify(entry):

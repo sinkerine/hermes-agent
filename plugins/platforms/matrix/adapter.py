@@ -2179,22 +2179,44 @@ class MatrixAdapter(BasePlatformAdapter):
         body = source_content.get("body", "") or ""
         if not body:
             return
-        # Dict lookup first: the mention regexes only run when a voice is parked or being gated
-        # (both only happen under require_mention).
+        # Consume only an explicitly armed structured capture before normal text dispatch.
+        from tools import secret_gateway
+        pending = secret_gateway.get_pending()
+        normalized = _normalize_matrix_bang_command(body)
+        if pending is not None and relates_to.get("rel_type") != "m.replace":
+            if not body.strip() or len(body.encode("utf-8")) > 16384:
+                return
+            if normalized.startswith("/"):
+                return await self._build_and_dispatch_text(
+                    room_id, sender, event_id, normalized, source_content, relates_to)
+            redacted = False
+            with suppress(Exception):
+                redacted = await self.redact_message(room_id, event_id, "secret capture")
+            result = await asyncio.to_thread(
+                secret_gateway.resolve_with_value, pending.capture_id, body, redacted=redacted)
+            logger.info("Matrix structured secret capture completed: success=%s", result.success)
+            return
+
+        # Dict lookup first: the mention regexes only run when a voice is parked or being gated.
         if (self._parked_voices.pending(room_id, sender)
                 and not self._strip_mention(body).strip() and self._content_mentions_bot(body, source_content)):
-            limit = self._parked_voices.mark()  # never claim a voice sent after this mention
-            await self._parked_voices.settle(room_id, sender)  # same-/sync-batch voice still gating
+            limit = self._parked_voices.mark()
+            await self._parked_voices.settle(room_id, sender)
             parked = self._parked_voices.claim(room_id, sender, before=limit)
-            if parked:  # answer the voice this bare mention was typed for, not an empty text
+            if parked:
                 voice_id, voice_content, voice_relates = parked
                 await self._handle_media_message(
                     room_id, sender, voice_id, event_ts, voice_content, voice_relates, "m.audio",
                     mention_claimed=True)
-                self._background_read_receipt(room_id, event_id)  # the claim receipted the voice
+                self._background_read_receipt(room_id, event_id)
                 return
-        normalized = _normalize_matrix_bang_command(body)
-        msg_event = await self._build_inbound_event(room_id, sender, event_id, normalized, source_content, relates_to)
+        await self._build_and_dispatch_text(
+            room_id, sender, event_id, normalized, source_content, relates_to)
+
+    async def _build_and_dispatch_text(
+        self, room_id: str, sender: str, event_id: str, body: str, source_content: dict, relates_to: dict,
+    ) -> None:
+        msg_event = await self._build_inbound_event(room_id, sender, event_id, body, source_content, relates_to)
         if msg_event is None:
             return
         if msg_event.message_type == MessageType.TEXT and self._text_batch_delay_seconds > 0:

@@ -87,32 +87,37 @@ def _capture_required_environment_variables(
         return _capture_result([])
     missing_names = [entry["name"] for entry in missing_entries]
     from tools import skills_tool as skills
-    callback = skills._turn_secret_capture.get()
+    callback = skills.get_secret_capture_callback()
     if callback is None and _is_gateway_surface() and not env_var_enabled("HERMES_INTERACTIVE"):
         try:
             from gateway.platforms.base import GATEWAY_SECRET_CAPTURE_UNSUPPORTED_MESSAGE as hint
         except Exception:
             hint = (f"Secure secret entry is not available. Load this skill in the local CLI to be "
                     f"prompted, or add the key to {display_hermes_home()}/.env manually.")
-        return _capture_result(missing_names, gateway_setup_hint=hint)
-    if callback is None:
-        callback = skills._secret_capture_callback
+        return _capture_result(missing_names, gateway_setup_hint=hint, capture_supported=False,
+                               capture_outcome="unavailable")
     if callback is None:
         return _capture_result(missing_names, capture_supported=False, capture_outcome="unavailable")
 
     remaining: List[str] = []
+    attempted = False
     for entry in missing_entries:
         metadata = {"skill_name": skill_name,
                     **{key: entry[key] for key in ("help", "required_for") if entry.get(key)}}
         try:
+            attempted = True
             result = callback(entry["name"], entry["prompt"], metadata)
         except Exception:
             logger.warning("Secret capture callback failed for %s", entry["name"], exc_info=True)
             result = {"success": False, "skipped": True}
         if not (isinstance(result, dict) and result.get("success") and not result.get("skipped")):
             remaining.append(entry["name"])
+    stored = attempted and not remaining
     return _capture_result(remaining, bool(remaining),
-                           capture_supported=True, capture_outcome="stored" if not remaining else "failed")
+                           gateway_setup_hint=None if stored else
+                           "Secure prompted capture was attempted; no secret value is exposed to the model.",
+                           capture_supported=True,
+                           capture_outcome="stored" if stored else ("failed" if attempted else "unavailable"))
 
 
 def _is_gateway_surface() -> bool:
