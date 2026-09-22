@@ -1,6 +1,6 @@
 """Skill readiness: required env vars, secret capture, and setup notes. Split out of
-``tools.skills_tool`` (names re-imported there); module state (``_secret_capture_callback``,
-``load_env``) stays there and is read lazily at call time so origin-module patches are honored."""
+``tools.skills_tool`` (names re-imported there); module state stays there and is read lazily.
+"""
 
 import logging
 import re
@@ -23,7 +23,6 @@ class SkillReadinessStatus(str, Enum):
 
 
 def _is_remote_env_backend(backend: str) -> bool:
-    """Built-in remote backends plus plugin backends declaring is_remote."""
     if backend in _REMOTE_ENV_BACKENDS or not backend or backend == "local":
         return backend in _REMOTE_ENV_BACKENDS
     try:
@@ -34,49 +33,43 @@ def _is_remote_env_backend(backend: str) -> bool:
 
 
 def _as_dict_list(raw: Any) -> list:
-    """Accept a single mapping or a list; anything else is treated as empty."""
     return [raw] if isinstance(raw, dict) else raw if isinstance(raw, list) else []
 
 
 def _clean_str(value: Any) -> str | None:
-    """Stripped string when *value* is a non-blank str, else None."""
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
 def _get_required_environment_variables(frontmatter: dict[str, Any]) -> list[dict[str, Any]]:
-    """Merge required_environment_variables, setup.collect_secrets and legacy
-    prerequisites.env_vars into one deduped, validated list (first entry wins)."""
+    """Merge supported skill env-var declaration formats, deduping by validated name."""
     setup = frontmatter.get("setup")
     setup = setup if isinstance(setup, dict) else {}
     setup_help = _clean_str(setup.get("help"))
     prereqs = frontmatter.get("prerequisites")
     legacy = (prereqs.get("env_vars") if isinstance(prereqs, dict) else None) or []
     legacy = [legacy] if isinstance(legacy, str) else legacy
-    required: dict[str, dict[str, Any]] = {}  # env name -> entry, insertion-ordered, first wins
+    required: dict[str, dict[str, Any]] = {}
     declared = _as_dict_list(frontmatter.get("required_environment_variables"))
-    entries = [{"name": i} if isinstance(i, str) else i for i in declared
-               if isinstance(i, (str, dict))]
-    # collect_secrets entries: env_var is the name; provider_url (or url) doubles as help.
+    entries = [{"name": item} if isinstance(item, str) else item for item in declared
+               if isinstance(item, (str, dict))]
     entries += [
-        {"name": i.get("env_var"), "prompt": i.get("prompt"),
-         "url": str(i.get("provider_url") or i.get("url") or "").strip() or None}
-        for i in _as_dict_list(setup.get("collect_secrets")) if isinstance(i, dict)]
-    entries += [{"name": str(v)} for v in legacy if str(v).strip()]
+        {"name": item.get("env_var"), "prompt": item.get("prompt"),
+         "url": str(item.get("provider_url") or item.get("url") or "").strip() or None}
+        for item in _as_dict_list(setup.get("collect_secrets")) if isinstance(item, dict)]
+    entries += [{"name": str(value)} for value in legacy if str(value).strip()]
     for entry in entries:
-        env_name = str(entry.get("name") or entry.get("env_var") or "").strip()
-        if not env_name or env_name in required or not _ENV_VAR_NAME_RE.match(env_name):
+        name = str(entry.get("name") or entry.get("env_var") or "").strip()
+        if not name or name in required or not _ENV_VAR_NAME_RE.match(name):
             continue
         normalized: dict[str, Any] = {
-            "name": env_name,
-            "prompt": str(entry.get("prompt") or f"Enter value for {env_name}").strip()}
-        if help_text := _clean_str(
-                entry.get("help") or entry.get("provider_url") or entry.get("url") or setup_help):
+            "name": name, "prompt": str(entry.get("prompt") or f"Enter value for {name}").strip()}
+        if help_text := _clean_str(entry.get("help") or entry.get("provider_url") or entry.get("url") or setup_help):
             normalized["help"] = help_text
         if required_for := _clean_str(entry.get("required_for")):
             normalized["required_for"] = required_for
         if entry.get("optional"):
             normalized["optional"] = True
-        required[env_name] = normalized
+        required[name] = normalized
     return list(required.values())
 
 
@@ -88,17 +81,13 @@ def _capture_result(missing_names, setup_skipped=False, gateway_setup_hint=None,
 
 
 def _capture_required_environment_variables(
-<<<<<<< HEAD
-    skill_name: str, missing_entries: list[dict[str, Any]]) -> dict[str, Any]:
-    """Prompt for missing secrets via the registered capture callback (if any)."""
-    from tools import skills_tool as _st
+    skill_name: str, missing_entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Invoke turn-local or registered capture callbacks; explain unsupported gateways."""
     if not missing_entries:
         return _capture_result([])
     missing_names = [entry["name"] for entry in missing_entries]
-    callback = _st._turn_secret_capture.get()
-    # Messaging-platform gateway surfaces can't prompt for a secret, so they get the "unsupported"
-    # hint. Interactive gateway surfaces (desktop app / TUI) set HERMES_INTERACTIVE (same flag
-    # tools/approval.py uses) and register a callback routing to a secure secret.request overlay.
+    from tools import skills_tool as skills
+    callback = skills._turn_secret_capture.get()
     if callback is None and _is_gateway_surface() and not env_var_enabled("HERMES_INTERACTIVE"):
         try:
             from gateway.platforms.base import GATEWAY_SECRET_CAPTURE_UNSUPPORTED_MESSAGE as hint
@@ -106,33 +95,24 @@ def _capture_required_environment_variables(
             hint = (f"Secure secret entry is not available. Load this skill in the local CLI to be "
                     f"prompted, or add the key to {display_hermes_home()}/.env manually.")
         return _capture_result(missing_names, gateway_setup_hint=hint)
-    if callback is None and (callback := _st._secret_capture_callback) is None:
-        return _capture_result(missing_names)
-    remaining_names: list[str] = []
-=======
-    skill_name: str, missing_entries: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Use secure callback on interactive surfaces; messaging has no capture path."""
-    if not missing_entries:
-        return _capture_result([])
-    missing_names = [entry["name"] for entry in missing_entries]
-    from tools import skills_tool as _st
-    callback = _st.get_secret_capture_callback()
-    if callback is None or _is_gateway_surface():
-        return _capture_result(missing_names, capture_supported=False,
-                               capture_outcome="unavailable")
-    remaining_names: List[str] = []
->>>>>>> 021a921b1f (remove Matrix credential storage tool and special capture guidance)
+    if callback is None:
+        callback = skills._secret_capture_callback
+    if callback is None:
+        return _capture_result(missing_names, capture_supported=False, capture_outcome="unavailable")
+
+    remaining: List[str] = []
     for entry in missing_entries:
-        metadata = {"skill_name": skill_name, **{k: entry[k] for k in ("help", "required_for") if entry.get(k)}}
+        metadata = {"skill_name": skill_name,
+                    **{key: entry[key] for key in ("help", "required_for") if entry.get(key)}}
         try:
-            callback_result = callback(entry["name"], entry["prompt"], metadata)
+            result = callback(entry["name"], entry["prompt"], metadata)
         except Exception:
-            logger.warning(f"Secret capture callback failed for {entry['name']}", exc_info=True)
-            callback_result = {"success": False, "stored_as": entry["name"], "validated": False, "skipped": True}
-        ok = isinstance(callback_result, dict) and callback_result.get("success")
-        if not (ok and not callback_result.get("skipped")):
-            remaining_names.append(entry["name"])
-    return _capture_result(remaining_names, bool(remaining_names))
+            logger.warning("Secret capture callback failed for %s", entry["name"], exc_info=True)
+            result = {"success": False, "skipped": True}
+        if not (isinstance(result, dict) and result.get("success") and not result.get("skipped")):
+            remaining.append(entry["name"])
+    return _capture_result(remaining, bool(remaining),
+                           capture_supported=True, capture_outcome="stored" if not remaining else "failed")
 
 
 def _is_gateway_surface() -> bool:
@@ -142,18 +122,8 @@ def _is_gateway_surface() -> bool:
     return bool(get_session_env("HERMES_SESSION_PLATFORM"))
 
 
-<<<<<<< HEAD
-def _is_env_var_persisted(var_name: str, env_snapshot: dict[str, str]) -> bool:
-=======
 def _is_env_var_persisted(var_name: str, env_snapshot: Dict[str, str]) -> bool:
->>>>>>> 021a921b1f (remove Matrix credential storage tool and special capture guidance)
-    """Return whether a requirement is present in this profile's secret sources.
-
-    The snapshot keeps the existing ``.env`` precedence.  A miss must use
-    ``get_secret`` rather than reading ``os.environ`` directly so an active
-    multiplex worker can see its hydrated external secrets without seeing a
-    different profile's process environment.
-    """
+    """Check profile snapshot first, then the active scoped secret source."""
     if var_name in env_snapshot:
         return bool(env_snapshot[var_name])
     try:
@@ -164,8 +134,7 @@ def _is_env_var_persisted(var_name: str, env_snapshot: Dict[str, str]) -> bool:
 
 
 def _build_setup_note(
-    readiness_status: SkillReadinessStatus, missing: list[str],
-    setup_help: str | None = None) -> str | None:
+    readiness_status: SkillReadinessStatus, missing: list[str], setup_help: str | None = None) -> str | None:
     if readiness_status != SkillReadinessStatus.SETUP_NEEDED:
         return None
     note = f"Setup needed before using this skill: missing {', '.join(missing) if missing else 'required prerequisites'}."
