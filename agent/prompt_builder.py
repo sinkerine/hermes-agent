@@ -673,6 +673,15 @@ _LOCAL_CRON_DELIVERY_NOTE = (
     "default-deliver cron job will message them in this session."
 )
 
+_MESSAGING_CREDENTIAL_CAPTURE_GUIDANCE = (
+    "Credential handling: when a user supplies an API key, token, or other secret in chat after setup asks for it, "
+    "do not repeat, log, or expose the value, and do not refuse solely because it arrived through chat. Use Hermes' "
+    "secure gateway credential-capture flow through the skill setup/readiness path; the captured value is persisted to "
+    "the active profile without returning it to the model. `tools.credential_files` registers existing credential files "
+    "for sandbox mounts; it does not read raw chat secrets, so never use it to read `.env`, `auth.json`, or other "
+    "master credential stores."
+)
+
 PLATFORM_HINTS = {
     "whatsapp": (
         "You are on WhatsApp. Standard markdown auto-converts to WhatsApp syntax (*bold*, _italic_, ~strike~, "
@@ -785,6 +794,7 @@ PLATFORM_HINTS = {
         "blockquotes, and links render. Do NOT use tables (popular clients like Element X collapse them into run-on "
         "text \u2014 use '**Label:** value' lines or bullets), and avoid ||spoilers||, ~~strikethrough~~, and "
         "checkboxes (they appear as literal characters). Prefer [descriptive text](url) over bare URLs. "
+        f"{_MESSAGING_CREDENTIAL_CAPTURE_GUIDANCE} "
         f"{_MEDIA_NATIVE}Images send as inline photos, audio (.ogg, .mp3) as voice/audio "
         "messages, video (.mp4) inline, other files as attachments."
     ),
