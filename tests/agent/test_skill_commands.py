@@ -660,7 +660,7 @@ class TestBuildSkillInvocationMessage:
         assert len(calls) == 1
         assert calls[0][0] == "TENOR_API_KEY"
 
-    def test_gateway_still_loads_skill_but_returns_setup_guidance(
+    def test_matrix_still_loads_skill_but_returns_plaintext_setup_guidance(
         self, tmp_path, monkeypatch
     ):
         monkeypatch.delenv("TENOR_API_KEY", raising=False)
@@ -680,7 +680,7 @@ class TestBuildSkillInvocationMessage:
         with patch("tools.skills_tool.SKILLS_DIR", tmp_path):
             from gateway.session_context import clear_session_vars, set_session_vars
 
-            tokens = set_session_vars(platform="telegram")
+            tokens = set_session_vars(platform="matrix")
             try:
                 _make_skill(
                     tmp_path,
@@ -697,7 +697,8 @@ class TestBuildSkillInvocationMessage:
                 clear_session_vars(tokens)
 
         assert msg is not None
-        assert "local cli" in msg.lower()
+        assert "ordinary Matrix chat" in msg
+        assert "model context" in msg
 
 
 class TestSkillDirectoryHeader:

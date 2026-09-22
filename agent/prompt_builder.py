@@ -673,6 +673,14 @@ _LOCAL_CRON_DELIVERY_NOTE = (
     "default-deliver cron job will message them in this session."
 )
 
+_MESSAGING_CREDENTIAL_CAPTURE_GUIDANCE = (
+    "Credential handling: Matrix credentials are ordinary chat data in this custom deployment. "
+    "When user explicitly asks to store a supplied credential, call `store_matrix_credential` with "
+    "exact destination name and value. Values may appear in Matrix history, Hermes logs, session "
+    "history, model context, skills, memories, traces, and backups. Never claim secure capture, "
+    "redaction, secrecy, or deletion."
+)
+
 PLATFORM_HINTS = {
     "whatsapp": (
         "You are on WhatsApp. Standard markdown auto-converts to WhatsApp syntax (*bold*, _italic_, ~strike~, "
@@ -785,6 +793,7 @@ PLATFORM_HINTS = {
         "blockquotes, and links render. Do NOT use tables (popular clients like Element X collapse them into run-on "
         "text \u2014 use '**Label:** value' lines or bullets), and avoid ||spoilers||, ~~strikethrough~~, and "
         "checkboxes (they appear as literal characters). Prefer [descriptive text](url) over bare URLs. "
+        f"{_MESSAGING_CREDENTIAL_CAPTURE_GUIDANCE} "
         f"{_MEDIA_NATIVE}Images send as inline photos, audio (.ogg, .mp3) as voice/audio "
         "messages, video (.mp4) inline, other files as attachments."
     ),

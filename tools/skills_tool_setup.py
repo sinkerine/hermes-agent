@@ -80,8 +80,11 @@ def _get_required_environment_variables(frontmatter: dict[str, Any]) -> list[dic
     return list(required.values())
 
 
-def _capture_result(missing_names, setup_skipped=False, gateway_setup_hint=None):
-    return {"missing_names": missing_names, "setup_skipped": setup_skipped, "gateway_setup_hint": gateway_setup_hint}
+def _capture_result(missing_names, setup_skipped=False, gateway_setup_hint=None, **outcome):
+    result = {"missing_names": missing_names, "setup_skipped": setup_skipped,
+              "gateway_setup_hint": gateway_setup_hint}
+    result.update({key: value for key, value in outcome.items() if value is not None})
+    return result
 
 
 def _capture_required_environment_variables(
@@ -91,6 +94,16 @@ def _capture_required_environment_variables(
     if not missing_entries:
         return _capture_result([])
     missing_names = [entry["name"] for entry in missing_entries]
+    if _is_gateway_surface() and _get_gateway_platform() == "matrix":
+        return _capture_result(
+            missing_names,
+            gateway_setup_hint=(
+                "Send the value in ordinary Matrix chat when asked; it may appear in Matrix history, "
+                "Hermes logs, session history, model context, and other configured records."
+            ),
+            capture_supported=False,
+            capture_outcome="ordinary_chat",
+        )
     callback = _st._turn_secret_capture.get()
     # Messaging-platform gateway surfaces can't prompt for a secret, so they get the "unsupported"
     # hint. Interactive gateway surfaces (desktop app / TUI) set HERMES_INTERACTIVE (same flag
@@ -123,6 +136,11 @@ def _is_gateway_surface() -> bool:
         return True
     from gateway.session_context import get_session_env
     return bool(get_session_env("HERMES_SESSION_PLATFORM"))
+
+
+def _get_gateway_platform() -> str:
+    from gateway.session_context import get_session_env
+    return str(get_session_env("HERMES_SESSION_PLATFORM", "") or "").strip().lower()
 
 
 def _is_env_var_persisted(var_name: str, env_snapshot: dict[str, str]) -> bool:
