@@ -18,15 +18,27 @@ def test_matrix_credential_stores_exact_value_in_active_profile(monkeypatch, tmp
     assert "exact=value" in (tmp_path / ".env").read_text()
 
 
-def test_ambiguous_non_matrix_or_invalid_destination_never_writes(monkeypatch, tmp_path):
-    monkeypatch.setenv("HERMES_SESSION_PLATFORM", "matrix")
+def test_registered_tool_has_no_availability_or_credential_check(monkeypatch, tmp_path):
+    from tools.registry import registry
+
+    monkeypatch.delenv("HERMES_SESSION_PLATFORM", raising=False)
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
+    entry = registry.get_entry("store_matrix_credential")
+    assert entry is not None
+    assert entry.check_fn is None
+    assert entry.requires_env == []
+
+    raw_result = registry.dispatch(
+        "store_matrix_credential",
+        {"env_var": "ANY_DESTINATION", "value": "value"},
+    )
+    result = raw_result if isinstance(raw_result, dict) else json.loads(raw_result)
+    assert result["success"] is True
+
+
+def test_writer_rejects_only_invalid_destination(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     invalid = json.loads(store_matrix_credential("PATH=bad", "value"))
     assert invalid["success"] is False
-    assert not (tmp_path / ".env").exists()
-
-    monkeypatch.setenv("HERMES_SESSION_PLATFORM", "telegram")
-    rejected = json.loads(store_matrix_credential("OTHER_KEY", "value"))
-    assert rejected == {"success": False, "error_code": "matrix_only"}
     assert not (tmp_path / ".env").exists()
