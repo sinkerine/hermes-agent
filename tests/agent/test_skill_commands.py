@@ -660,7 +660,7 @@ class TestBuildSkillInvocationMessage:
         assert len(calls) == 1
         assert calls[0][0] == "TENOR_API_KEY"
 
-    def test_matrix_still_loads_skill_but_returns_plaintext_setup_guidance(
+    def test_matrix_still_loads_skill_without_credential_storage_guidance(
         self, tmp_path, monkeypatch
     ):
         monkeypatch.delenv("TENOR_API_KEY", raising=False)
@@ -697,8 +697,9 @@ class TestBuildSkillInvocationMessage:
                 clear_session_vars(tokens)
 
         assert msg is not None
-        assert "ordinary Matrix chat" in msg
-        assert "model context" in msg
+        assert "missing env $TENOR_API_KEY" in msg
+        assert "ordinary Matrix chat" not in msg
+        assert "store_matrix_credential" not in msg
 
 
 class TestSkillDirectoryHeader:
