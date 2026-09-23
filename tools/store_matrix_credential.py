@@ -12,22 +12,12 @@ _ENV_VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _MAX_VALUE_BYTES = 64 * 1024
 
 
-def _session_platform() -> str:
-    try:
-        from gateway.session_context import get_session_env
-        return str(get_session_env("HERMES_SESSION_PLATFORM", "") or "").strip().lower()
-    except Exception:
-        return ""
-
-
 def _result(**fields: Any) -> str:
     return json.dumps(fields, ensure_ascii=False)
 
 
 def store_matrix_credential(env_var: str, value: str, description: str = "", **kwargs: Any) -> str:
-    """Store exact user-supplied value in current profile .env after explicit Matrix intent."""
-    if _session_platform() != "matrix":
-        return _result(success=False, error_code="matrix_only")
+    """Store exact user-supplied value in current profile .env."""
     if not isinstance(env_var, str) or not _ENV_VAR_NAME_RE.fullmatch(env_var):
         return _result(success=False, error_code="invalid_env_name")
     if not isinstance(value, str):
