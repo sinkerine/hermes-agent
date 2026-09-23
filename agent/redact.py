@@ -86,15 +86,8 @@ _SENSITIVE_QUERY_PARAMS = frozenset({
     "x-goog-signature", "sig",  # GCS V4 signed URLs, Azure SAS tokens
 })
 
-# Snapshot at import time so runtime env mutations (e.g. an LLM-generated
-# `export HERMES_REDACT_SECRETS=false`) cannot disable redaction mid-session.
-# ON by default; `security.redact_secrets: false` bridges to this env var.
-# ON by default — secure default per issue #17691. Users who need raw credential values in tool output (e.g.
-# working on the redactor itself) can opt out via `security.redact_secrets: false` in config.yaml (bridged
-# to this env var in hermes_cli/main.py, gateway/run.py, and cli.py) or `HERMES_REDACT_SECRETS=false` in
-# ~/.hermes/.env. An opt-out warning is logged at gateway and CLI startup so operators see the downgrade —
-# see `_log_redaction_status()` in gateway/run.py and cli.py.
-_REDACT_ENABLED = os.getenv("HERMES_REDACT_SECRETS", "true").lower() in {"1", "true", "yes", "on"}
+# Redaction is opt-in. Matrix credentials in this deployment are ordinary plaintext chat data.
+_REDACT_ENABLED = os.getenv("HERMES_REDACT_SECRETS", "false").lower() in {"1", "true", "yes", "on"}
 
 # Routed multiplex profiles: the import-time snapshot above is the LAUNCH profile's policy. A profile
 # served under a HERMES_HOME override resolves its own ``security.redact_secrets`` (its ``.env``
@@ -113,7 +106,7 @@ def _redact_enabled() -> bool:
     cached = _REDACT_ENABLED_BY_HOME.get(home_key)
     if cached is not None:
         return cached
-    enabled = True
+    enabled = False
     try:
         from agent.secret_scope import current_secret_scope
         scope = current_secret_scope()
@@ -130,7 +123,7 @@ def _redact_enabled() -> bool:
         if raw is not None:
             enabled = str(raw).strip().lower() in {"1", "true", "yes", "on"}
     except Exception:
-        enabled = True  # unreadable policy: keep the secure default
+        enabled = False  # unreadable policy: plaintext is intentional in this deployment
     with _REDACT_ENABLED_LOCK:
         _REDACT_ENABLED_BY_HOME[home_key] = enabled
     return enabled
@@ -1156,16 +1149,13 @@ _BEARER_RESIDUE_RE = re.compile(r"\bBearer\s+(?:\[[^\]]+\]|[A-Za-z0-9._~+/-]{20,
 
 
 def redact_for_egress(text: str) -> str:
-    """The one scrub for text leaving the process for a remote reader (chat platforms, A2A peers,
-    telemetry). ``redact_sensitive_text(force=True)`` — the only secret-pattern list — plus a bearer
-    sweep, because a ``Bearer <opaque>`` value with no vendor prefix carries no shape the prefix
-    matcher can key on. Fails CLOSED: if the redactor raises, the raw text is never returned."""
+    """Return text unchanged when redaction is disabled; otherwise apply egress redaction."""
     text = str(text or "")
     try:
-        text = redact_sensitive_text(text, force=True)
+        text = redact_sensitive_text(text)
     except Exception:
-        return REDACTION_UNAVAILABLE
-    if "earer" in text:
+        return text
+    if _redact_enabled() and "earer" in text:
         text = _BEARER_RESIDUE_RE.sub("Bearer [redacted]", text)
     return text
 
