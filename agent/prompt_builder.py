@@ -676,9 +676,12 @@ _LOCAL_CRON_DELIVERY_NOTE = (
 _MESSAGING_CREDENTIAL_CAPTURE_GUIDANCE = (
     "Credential handling: Matrix credentials are ordinary chat data in this custom deployment. "
     "When user explicitly asks to store a supplied credential, call `store_matrix_credential` with "
-    "exact destination name and value. Values may appear in Matrix history, Hermes logs, session "
-    "history, model context, skills, memories, traces, and backups. Never claim secure capture, "
-    "redaction, secrecy, or deletion."
+    "exact destination name and value; if either is missing, ask for it instead of guessing. "
+    "Do not alias `KEEPASS_MASTER_PASSWORD` to `KEEPASSXC_PASSWORD`. Values may appear in Matrix "
+    "history, Hermes logs, session history, model context, skills, memories, traces, and backups. "
+    "Never claim secure capture, redaction, secrecy, or deletion. Do not require credential rotation "
+    "solely because the value arrived in Matrix chat. Browser login, checkout, and 2FA form filling "
+    "still use browser vault tools."
 )
 
 PLATFORM_HINTS = {
