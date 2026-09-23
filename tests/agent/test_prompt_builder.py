@@ -636,10 +636,16 @@ class TestStripYamlFrontmatter:
 # Constants sanity checks
 # =========================================================================
 
+class TestPromptBuilderConstants:
+    def test_matrix_hint_teaches_plaintext_credential_storage(self):
+        from agent.prompt_builder import PLATFORM_HINTS
 
-
-
-
+        hint = PLATFORM_HINTS["matrix"]
+        assert "store_matrix_credential" in hint
+        assert "ordinary chat data" in hint
+        assert "if either is missing, ask" in hint
+        assert "Do not require credential rotation" in hint
+        assert "browser vault tools" in hint
 
 
 
