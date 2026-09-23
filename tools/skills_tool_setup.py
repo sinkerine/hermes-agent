@@ -88,22 +88,13 @@ def _capture_result(missing_names, setup_skipped=False, gateway_setup_hint=None,
 
 
 def _capture_required_environment_variables(
+<<<<<<< HEAD
     skill_name: str, missing_entries: list[dict[str, Any]]) -> dict[str, Any]:
     """Prompt for missing secrets via the registered capture callback (if any)."""
     from tools import skills_tool as _st
     if not missing_entries:
         return _capture_result([])
     missing_names = [entry["name"] for entry in missing_entries]
-    if _is_gateway_surface() and _get_gateway_platform() == "matrix":
-        return _capture_result(
-            missing_names,
-            gateway_setup_hint=(
-                "Send the value in ordinary Matrix chat when asked; it may appear in Matrix history, "
-                "Hermes logs, session history, model context, and other configured records."
-            ),
-            capture_supported=False,
-            capture_outcome="ordinary_chat",
-        )
     callback = _st._turn_secret_capture.get()
     # Messaging-platform gateway surfaces can't prompt for a secret, so they get the "unsupported"
     # hint. Interactive gateway surfaces (desktop app / TUI) set HERMES_INTERACTIVE (same flag
@@ -118,6 +109,19 @@ def _capture_required_environment_variables(
     if callback is None and (callback := _st._secret_capture_callback) is None:
         return _capture_result(missing_names)
     remaining_names: list[str] = []
+=======
+    skill_name: str, missing_entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Use secure callback on interactive surfaces; messaging has no capture path."""
+    if not missing_entries:
+        return _capture_result([])
+    missing_names = [entry["name"] for entry in missing_entries]
+    from tools import skills_tool as _st
+    callback = _st.get_secret_capture_callback()
+    if callback is None or _is_gateway_surface():
+        return _capture_result(missing_names, capture_supported=False,
+                               capture_outcome="unavailable")
+    remaining_names: List[str] = []
+>>>>>>> 021a921b1f (remove Matrix credential storage tool and special capture guidance)
     for entry in missing_entries:
         metadata = {"skill_name": skill_name, **{k: entry[k] for k in ("help", "required_for") if entry.get(k)}}
         try:
@@ -138,12 +142,11 @@ def _is_gateway_surface() -> bool:
     return bool(get_session_env("HERMES_SESSION_PLATFORM"))
 
 
-def _get_gateway_platform() -> str:
-    from gateway.session_context import get_session_env
-    return str(get_session_env("HERMES_SESSION_PLATFORM", "") or "").strip().lower()
-
-
+<<<<<<< HEAD
 def _is_env_var_persisted(var_name: str, env_snapshot: dict[str, str]) -> bool:
+=======
+def _is_env_var_persisted(var_name: str, env_snapshot: Dict[str, str]) -> bool:
+>>>>>>> 021a921b1f (remove Matrix credential storage tool and special capture guidance)
     """Return whether a requirement is present in this profile's secret sources.
 
     The snapshot keeps the existing ``.env`` precedence.  A miss must use
