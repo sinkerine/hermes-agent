@@ -88,7 +88,7 @@ import { PageAgent } from 'page-agent'
 const agent = new PageAgent({
     model: 'qwen3.5-plus',
     baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    apiKey: process.env.LLM_API_KEY,   // never hardcode
+    apiKey: process.env.LLM_API_KEY,
     language: 'en-US',
 })
 

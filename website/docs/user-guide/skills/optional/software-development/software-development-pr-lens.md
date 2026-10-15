@@ -74,7 +74,7 @@ Run all commands with the terminal tool from the repository root.
    npx @coldtea/pr-lens-cli@latest canvas push
    ```
 
-   It prints three links. Give the user the **view link** (`https://prlens.dev/c/{id}`): the full-screen diagram, every view on one page, no login. The **edit link** (ending in `#w=…`) lets its holder overwrite the canvas — it is a secret: leave it out of the reply unless asked, never paste it anywhere public. The embed link serves the top view as an SVG for a README. Pushing the same file again updates the same canvas, so "rename that node" is: edit, validate, render, push — the link stays the same. If the push fails, say so and tell the user where the local SVGs are and which is the top view.
+   It prints three links. Give the user the **view link** (`https://prlens.dev/c/{id}`): the full-screen diagram, every view on one page, no login. The **edit link** (ending in `#w=…`) lets its holder overwrite the canvas.. The embed link serves the top view as an SVG for a README. Pushing the same file again updates the same canvas, so "rename that node" is: edit, validate, render, push — the link stays the same. If the push fails, say so and tell the user where the local SVGs are and which is the top view.
 
 5. **Attach to a PR, when there is one.** Upstream documents `gh pr create/edit/comment --attach <path>`, but `--attach` arrived in GitHub CLI 2.99 — check `gh --version` first (e.g. gh 2.97 does NOT have it). With gh ≥ 2.99: write the body with a Markdown image `![alt](https://github.com/NousResearch/hermes-agent/blob/main/optional-skills/software-development/pr-lens/.pr-lens/<view>.svg)` (an HTML `<img>` is left as written and the file appended at the bottom instead; alt text is the one-line caption a reader without images gets), then repeat `--attach <path>` per referenced diagram:
 
@@ -137,7 +137,6 @@ Validator failure codes:
 - Six rules are parser-only, not in the JSON Schema (referential integrity, inverted line ranges, disagreeing `self` endpoints, identical patch commits, too many views for a manifest, flow-step focus on the wrong stage) — always run `validate`, structured output alone is not enough.
 - Do not commit anything in `.pr-lens/`; it is regenerated and gitignored by the CLI.
 - The `--attach` gh flag needs gh ≥ 2.99; older gh silently lacks it — check before writing a body around it.
-- The canvas edit link (`#w=…`) is a write credential — never share it unprompted or paste it publicly.
 - A stored map never carries a walkthrough; a walkthrough tells the story of one change.
 - `pr-lens render` reports corrections in `.github/pr-lens.yml` that matched nothing — that is drift worth fixing, not an error.
 

@@ -43,7 +43,7 @@ When a user selects an authentication path or asks Hermes to connect Box, perfor
 - If `box` is missing, ask for any terminal approval required to install `@box/cli` under the current Hermes home at `tools/box-cli`; then verify it with the shell-appropriate command in [CLI guide](references/cli-guide.md). Do not attempt a global npm install, use `sudo`, change npm's global prefix, or change `PATH`.
 - Before OAuth, ask: **“Is Hermes running on the same computer as the browser you will use to authorize Box, or on a remote host such as a VPS, container, or cloud VM?”** Use normal `box login` only for the same-computer path. Use `box login --code` only for the remote/headless path. Do not infer runtime topology from the operating system alone; read [OAuth setup](references/oauth-setup.md) after the user answers.
 - Before starting browser authorization, state that Hermes will act as the Box account signed in there. If the user wants narrower access, they can authorize an account that is invited only to the required files, folders, or Hubs. Do not make that account an administrator to unlock an exceptional operation.
-- If a custom OAuth Platform App is necessary, use the CLI's interactive Platform App flow. Ask the user to enter its client secret only in the local CLI prompt; never request it in chat, write it to Hermes configuration, or commit it.
+- If a custom OAuth Platform App is necessary, use the CLI's interactive Platform App flow.
 - If an install, browser authorization, environment switch, or permission change needs approval, request that approval and resume the setup after it is granted. Do not replace the action with a command list.
 
 ## Start each task
@@ -100,7 +100,6 @@ Before the first Box AI request, state that Box AI must be enabled, consumes AI 
 - Use `--json` and `--fields` to keep output small. For mutations, inventory first, confirm ambiguous or large scope, then read back the result.
 - Run ordered CLI mutations serially so progress and recovery are unambiguous. Use documented bulk input support or bounded SDK concurrency for scalable work.
 - Do not create a shared link merely to provide navigation. Shared links change access and require explicit confirmation.
-- Do not put secrets in chat, command output, source control, or logs.
 
 ## Report results
 

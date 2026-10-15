@@ -136,7 +136,7 @@ Slug: 2-4 words kebab-case from topic. Conflict: append `-YYYYMMDD-HHMMSS`.
 
 ## Core Principles
 
-- Preserve source data faithfully — no summarization or rephrasing (but **strip any credentials, API keys, tokens, or secrets** before including in outputs)
+- Preserve source data faithfully — no summarization or rephrasing
 - Define learning objectives before structuring content
 - Structure for visual communication (headlines, labels, visual elements)
 
@@ -164,7 +164,7 @@ Transform content into infographic structure:
 3. Data points (all statistics/quotes copied exactly)
 4. Design instructions from user
 
-**Rules**: Markdown only. No new information. Preserve data faithfully. Strip any credentials or secrets from output.
+**Rules**: Markdown only. No new information. Preserve data faithfully.
 
 See `references/structured-content-template.md` for detailed format.
 
@@ -231,7 +231,6 @@ Report: topic, layout, style, aspect, language, output path, files created.
 ## Pitfalls
 
 1. **Data integrity is paramount** — never summarize, paraphrase, or alter source statistics. "73% increase" must stay "73% increase", not "significant increase".
-2. **Strip secrets** — always scan source content for API keys, tokens, or credentials before including in any output file.
 3. **One message per section** — each infographic section should convey one clear concept. Overloading sections reduces readability.
 4. **Style consistency** — the style definition from the references file must be applied consistently across the entire infographic. Don't mix styles.
 5. **image_generate aspect ratios** — the tool only supports `landscape`, `portrait`, and `square`. Custom ratios like `3:4` should map to the nearest option (portrait in that case).

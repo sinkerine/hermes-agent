@@ -32,21 +32,9 @@ This skill replaces the older `xitter` skill (which wrapped a third-party Python
 
 ---
 
-## Secret Safety (MANDATORY)
+## Authentication
 
-Critical rules when operating inside an agent/LLM session:
-
-- **Never** read, print, parse, summarize, upload, or send `~/.xurl` to LLM context.
-- **Never** ask the user to paste credentials/tokens into chat.
-- The user must fill `~/.xurl` with secrets manually on their own machine. In Docker, this must be the `~` seen by Hermes tool subprocesses; see the Docker note below.
-- **Never** recommend or execute auth commands with inline secrets in agent sessions.
-- **Never** use `--verbose` / `-v` in agent sessions — it can expose auth headers/tokens.
-- To verify credentials exist, only use: `xurl auth status`.
-
-Forbidden flags in agent commands (they accept inline secrets):
-`--bearer-token`, `--consumer-key`, `--consumer-secret`, `--access-token`, `--token-secret`, `--client-id`, `--client-secret`
-
-App credential registration and credential rotation must be done by the user manually, outside the agent session. After credentials are registered, the user authenticates with `xurl auth oauth2` — also outside the agent session. Tokens persist to `~/.xurl` in YAML. Each app has isolated tokens. OAuth 2.0 tokens auto-refresh.
+Use `xurl auth status` to check authentication. Tokens persist to `~/.xurl` in YAML. Each app has isolated tokens. OAuth 2.0 tokens auto-refresh. In Docker, use the home seen by Hermes tool subprocesses; see the Docker note below.
 
 ---
 
@@ -75,13 +63,12 @@ xurl --help
 xurl auth status
 ```
 
-If `xurl` is installed but `auth status` shows no apps or tokens, the user needs to complete auth manually — see the next section.
+If `xurl` is installed but `auth status` shows no apps or tokens, complete authentication as described in the next section.
 
 ---
 
-## One-Time User Setup (user runs these outside the agent)
+## One-Time User Setup
 
-These steps must be performed by the user directly, NOT by the agent, because they involve pasting secrets. Direct the user to this block; do not execute it for them.
 
 1. Create or open an app at https://developer.x.com/en/portal/dashboard
 2. Set the redirect URI to `http://localhost:8080/callback`
@@ -371,7 +358,7 @@ xurl mentions -n 20
 xurl timeline -n 20
 ```
 
-### Multiple apps (credentials pre-configured manually)
+### Multiple apps (credentials pre-configured)
 ```bash
 xurl auth default prod alice               # prod app, alice user
 xurl --app staging /2/users/me             # one-off against staging
@@ -383,7 +370,7 @@ xurl --app staging /2/users/me             # one-off against staging
 
 - Non-zero exit code on any error.
 - API errors are still printed as JSON to stdout, so you can parse them.
-- Auth errors → have the user re-run `xurl auth oauth2` outside the agent session.
+- Auth errors → re-run `xurl auth oauth2`.
 - Commands that need the caller's user ID (like, repost, bookmark, follow, etc.) will auto-fetch it via `/2/users/me`. An auth failure there surfaces as an auth error.
 
 ---
@@ -393,12 +380,11 @@ xurl --app staging /2/users/me             # one-off against staging
 1. Verify prerequisites: `xurl --help` and `xurl auth status`.
 2. Before using `xurl search`, check intent. Reach for it when the task needs actual post objects, authenticated account context, or leads into an X write action — it is the right surface when the user wants posts they can engage with, not just a summary of a topic.
 3. **Check default app has credentials.** Parse the `auth status` output. The default app is marked with `▸`. If the default app shows `oauth2: (none)` but another app has a valid oauth2 user, tell the user to run `xurl auth default <that-app>` to fix it. This is the most common setup mistake — the user added an app with a custom name but never set it as default, so xurl keeps trying the empty `default` profile.
-4. If auth is missing entirely, stop and direct the user to the "One-Time User Setup" section — do NOT attempt to register apps or pass secrets yourself.
+4. If auth is missing entirely, follow the "One-Time User Setup" section.
 5. Start with a cheap read (`xurl whoami`, `xurl user @handle`, `xurl search ... -n 3`) to confirm reachability.
 6. Confirm the target post/user and the user's intent before any write action (post, reply, like, repost, DM, follow, block, delete).
 7. Only the `xurl` command output (or the raw X API response) proves that a state-changing X action happened. Never report a write as done based on any other source — search results, summaries, or prior context.
 8. Use JSON output directly — every response is already structured.
-9. Never paste `~/.xurl` contents back into the conversation.
 
 ---
 
@@ -424,7 +410,7 @@ xurl --app staging /2/users/me             # one-off against staging
 - **Token refresh:** OAuth 2.0 tokens auto-refresh. Nothing to do.
 - **Multiple apps:** Each app has isolated credentials/tokens. Switch with `xurl auth default` or `--app`.
 - **Multiple accounts per app:** Select with `-u / --username`, or set a default with `xurl auth default APP USER`.
-- **Token storage:** `~/.xurl` is YAML. In Docker, use the Hermes subprocess HOME (`/opt/data/home` in the official image) so tokens land under `/opt/data/home/.xurl`. Never read or send this file to LLM context.
+- **Token storage:** `~/.xurl` is YAML. In Docker, use the Hermes subprocess HOME (`/opt/data/home` in the official image) so tokens land under `/opt/data/home/.xurl`.
 - **Cost:** X API access is typically paid for meaningful usage. Many failures are plan/permission problems, not code problems.
 
 ---

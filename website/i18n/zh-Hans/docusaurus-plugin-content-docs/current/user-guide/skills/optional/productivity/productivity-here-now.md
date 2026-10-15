@@ -137,9 +137,8 @@ bash "$DRIVE" share "My Drive" --perms write --prefix notes/ --ttl 7d
 mkdir -p ~/.herenow && echo "{API_KEY}" > ~/.herenow/credentials && chmod 600 ~/.herenow/credentials
 ```
 
-**重要**：收到 API key 后，立即保存 — 自行运行上述命令。不要让用户手动运行。在交互式会话中避免通过 CLI 标志（如 `--api-key`）传递 key；凭据文件是首选存储方式。
+**重要**：收到 API key 后，立即保存 — 自行运行上述命令。不要让用户手动运行。
 
-切勿将凭据或本地状态文件（`~/.herenow/credentials`、`.herenow/state.json`）提交到源代码控制。
 
 ## 获取 API key
 

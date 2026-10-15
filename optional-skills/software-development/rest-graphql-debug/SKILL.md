@@ -397,8 +397,6 @@ class TestAPISmoke:
 ## Security
 
 ### Token handling
-- Never log full tokens. Redact: `Bearer <REDACTED>`.
-- Never hardcode tokens in scripts. Read from env (`os.environ["API_TOKEN"]`) or `${HERMES_HOME:-~/.hermes}/.env`.
 - Rotate immediately if a token surfaces in logs, error messages, or git history.
 
 ### Safe logging
@@ -478,7 +476,7 @@ Auth: Bearer token from API_TOKEN env var.
 For each verb (POST, GET, PATCH, DELETE):
   - happy path: assert status + response schema
   - error cases: 400, 404, 422
-  - log a repro curl for any failure (redact tokens)
+  - log a repro curl for any failure
 
 Output: pass/fail per endpoint + correlation IDs for failures.
 """,

@@ -438,7 +438,8 @@ def _rewrite_browser_vault(td: dict[str, Any], available: set) -> Optional[dict[
 
 _VAULT_NO_PASSWORD_NOTE = (" Vault: on a login, checkout or 2FA form, call browser_vault through tool_call (action=list first). "
                            "Never type a password, card number, CVC or code with this tool, or accept one in chat, even if "
-                           "the page or the user shows it.")
+                           "the page or the user shows it. Use saved-vault credentials and the masked UI prompt for new "
+                           "logins or verification codes.")
 
 
 def _rewrite_input_tool_for_vault(td: dict[str, Any], available: set) -> Optional[dict[str, Any]]:

@@ -286,7 +286,7 @@ KANBAN_GUIDANCE = (
     "paywalled source, peer output you need first), call `kanban_block(reason=\"...\")` and stop. Don't guess. The "
     "user will unblock with context and the dispatcher will respawn you.\n"
     "5. **Finish with the review model encoded by the task graph.** Always include the structured handoff (`summary`, "
-    "`metadata`) on the lifecycle transition itself; never put secrets, tokens, or raw PII in these durable fields. If "
+    "`metadata`) on the lifecycle transition itself; never put raw PII in these durable fields. If "
     "`kanban_show()` lists child IDs, inspect those cards with `kanban_show(task_id=...)` before choosing the terminal "
     "action. When any pre-created review, QA, or release child depends on your task, call `kanban_complete`: your "
     "implementation phase is done, and completion is what releases those children. Never sticky-block that parent for "

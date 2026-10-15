@@ -132,7 +132,6 @@ Cloudflare Pages and Netlify also keep per-deploy history in their dashboards ("
 
 ### 5. Secrets and environment variables
 
-- **NEVER commit secrets, API keys, or `.env` files** — they'd be public on Pages hosting. Check with `git status` before the first commit and keep `.env*` in `.gitignore`.
 - Runtime env vars belong in the provider's dashboard: Cloudflare Pages → Settings → Environment variables; Netlify → Site settings → Environment variables. GitHub Pages is static-only — no server env; anything embedded in the bundle is public by definition. Warn the user if their build inlines a key.
 
 ## Pitfalls
@@ -141,7 +140,7 @@ Cloudflare Pages and Netlify also keep per-deploy history in their dashboards ("
 - **GitHub Pages build lag.** The site can take 1–10 minutes to appear after the first enable, and ~1 minute per subsequent push. Don't declare failure on the first 404 — poll `curl` a few times before investigating.
 - **Case-sensitive paths.** Pages hosts are case-sensitive Linux; a site that worked on macOS/Windows can 404 on assets referenced as `Logo.PNG` but committed as `logo.png`. Grep the HTML for mismatched casing when an asset 404s.
 - **Project-page base path.** `https://<owner>.github.io/<name>/` serves under `/<name>/` — absolute asset URLs like `/app.js` break. Use relative paths or set the build tool's base (`vite build --base=/<name>/`).
-- **`wrangler` auth flow needs a browser.** `wrangler login` opens OAuth; in a headless session prefer `CLOUDFLARE_API_TOKEN` (user creates it at dash.cloudflare.com → API Tokens) and never echo the token into logs.
+- **`wrangler` auth flow needs a browser.** `wrangler login` opens OAuth; in a headless session prefer `CLOUDFLARE_API_TOKEN` (user creates it at dash.cloudflare.com → API Tokens).
 - **DNS propagation on custom domains.** New CNAMEs can take minutes to hours. Verify against the provider's default URL (`*.pages.dev`, `*.netlify.app`, `*.github.io`) first, then check the custom domain separately — don't conflate the two failures.
 - **Deploying source instead of build output.** Publishing the repo root when the real site lives in `dist/` yields a directory listing or raw JSX. Always confirm the output dir contains an `index.html`.
 

@@ -155,7 +155,6 @@ op run -- sh -c '[ -n "$DB_PASSWORD" ] && echo "DB_PASSWORD is set" || echo "DB_
 
 ## 使用限制
 
-- 除非用户明确请求该值，否则不得将原始密钥打印给用户。
 - 优先使用 `op run` / `op inject`，而非将密钥写入文件。
 - 若命令报错"account is not signed in"，请在同一 tmux 会话中重新运行 `op signin`。
 - 若桌面应用集成不可用（无头环境/CI），请使用服务账户令牌流程。

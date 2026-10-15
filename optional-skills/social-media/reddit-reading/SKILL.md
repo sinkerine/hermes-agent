@@ -101,7 +101,7 @@ than stopping at titles; the listing only carries the first ~300 characters of e
 ⑤ If the user needs sustained Reddit access (monitoring, more than ~10 calls), stop and
 ask them to register the app credentials (Prerequisites) rather than grinding through the
 throttle. Tell them plainly: it is a free app registration, not logging Hermes into their
-account. Never ask for a Reddit password or browser cookies.
+account.
 
 ## Pitfalls
 
@@ -114,8 +114,6 @@ account. Never ask for a Reddit password or browser cookies.
 - Anonymous thread feeds only contain the post plus top-level comments (Reddit caps the
   feed at a handful of entries); scores and reply nesting are OAuth-only.
 - Reddit's `limit` on feeds is advisory — expect 5–25 entries regardless of what you ask.
-- Never paste `REDDIT_CLIENT_SECRET` into a chat or log; the script reads it from the
-  environment only.
 - Do not "fix" a 429 by retrying in a loop or adding a proxy; the throttle is per IP and
   the script already waits out the window once. More than one 429 in a row means the
   task needs the app credentials.

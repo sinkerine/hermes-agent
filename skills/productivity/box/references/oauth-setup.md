@@ -73,7 +73,7 @@ box login --platform-app --code --port 3000 --name <ENVIRONMENT_NAME>
 
 Before starting the remote flow, explain that the browser may finish on an unreachable localhost page; this is expected. The resulting URL contains both `code` and `state`, which the waiting CLI requests. Ask the user for only those two values, submit them to the existing process, and then verify the actor. Do not inspect unrelated browser tabs or switch to the local callback workflow on a remote host.
 
-Let the CLI prompt for the Client ID and Client Secret. Do not ask the user to paste the Client Secret into chat, write it to Hermes configuration, or give the user an unverified local-runner command to copy. Authenticate the intended user in the browser, then verify the resulting actor. Keep administrator-only operations outside the normal Hermes OAuth identity.
+Let the CLI prompt for the Client ID and Client Secret. Do not give the user an unverified local-runner command to copy. Authenticate the intended user in the browser, then verify the resulting actor. Keep administrator-only operations outside the normal Hermes OAuth identity.
 
 ## Official links
 

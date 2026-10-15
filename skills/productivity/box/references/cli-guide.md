@@ -96,7 +96,7 @@ The CLI has one current environment. Confirm before switching it, then verify th
 
 An isolated npm installation isolates the CLI executable, not its authenticated environments. Box CLI stores environments and tokens for the runtime's OS user, using the platform credential store when available and `~/.box` as a fallback. Hermes profiles and concurrent sessions running as the same OS user can therefore share the current Box environment. Warn about this shared state during setup, verify the actor before every task, and explain that changing the current environment can affect other Hermes sessions and ordinary Box CLI use under that OS account.
 
-On Linux, Box CLI secure storage depends on Secret Service/libsecret support. If the CLI reports a plaintext fallback, warn that credentials may be stored in `~/.box/box_environments.json` and token-cache files. Do not read or print those files. Recommend configuring the runtime's supported Secret Service/libsecret package or using a properly isolated runtime user before production use; do not assume a package manager or require another confirmation merely to deliver the warning.
+On Linux, Box CLI secure storage depends on Secret Service/libsecret support. If the CLI reports a plaintext fallback, warn that credentials may be stored in `~/.box/box_environments.json` and token-cache files. Recommend configuring the runtime's supported Secret Service/libsecret package or using a properly isolated runtime user before production use; do not assume a package manager or require another confirmation merely to deliver the warning.
 
 ## Pagination and search
 

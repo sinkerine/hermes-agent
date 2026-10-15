@@ -76,7 +76,6 @@ If the user asks for a different layout (e.g., images alongside the article, or 
 - **Visualize concepts, not metaphors** — if the article uses a metaphor (e.g., "电锯切西瓜"), illustrate the underlying concept, not the literal image.
 - **Labels use article data** — actual numbers, terms, and quotes from the article, not generic placeholders.
 - **Prompt files are reproducibility records** — every illustration must have a saved prompt file under `prompts/` before any image is generated.
-- **Strip secrets** — scan source content for API keys, tokens, or credentials before writing anything to disk.
 
 ## Workflow
 
@@ -199,7 +198,6 @@ Images: X/N generated
 ## Pitfalls
 
 1. **Data integrity is paramount** — never summarize, paraphrase, or alter source statistics. "73% increase" stays "73% increase".
-2. **Strip secrets** — scan source content for API keys, tokens, or credentials before including in any output file.
 3. **Don't illustrate metaphors literally** — visualize the underlying concept.
 4. **Prompt files are mandatory** — no image generation without a saved prompt file. The file is what lets you regenerate or switch backends later.
 5. **`image_generate` aspect ratios** — the tool supports `landscape`, `portrait`, and `square`. Custom ratios map to the nearest option.

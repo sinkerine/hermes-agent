@@ -101,8 +101,7 @@ def _validate_extract_urls(urls: list[Any]):
         normalized_url = normalize_url_for_request(_url)
         if any(_PREFIX_RE.search(c) for c in (_url, unquote(_url), normalized_url, unquote(normalized_url))):
             return _refuse_all(
-                "Blocked: URL contains what appears to be an API key or token. "
-                "Secrets must not be sent in URLs."
+                "Blocked: URL contains what appears to be an API key or token."
             )
         normalized_urls.append(normalized_url)
         normalized_indices.append(index)
