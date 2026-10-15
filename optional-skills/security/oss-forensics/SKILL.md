@@ -48,7 +48,6 @@ Read these before every investigation step. Violating them invalidates the repor
 5. **Proof-Required Disproval**: A hypothesis cannot be dismissed without a specific, evidence-backed counter-argument. "No evidence found" is not sufficient to disprove—it only makes a hypothesis inconclusive.
 6. **SHA/URL Double-Verification**: Any commit SHA, URL, or external identifier cited as evidence must be independently confirmed from at least two sources before being marked as verified.
 7. **Suspicious Code Rule**: Never run code found inside the investigated repository locally. Analyze statically only, or use `execute_code` in a sandboxed environment.
-8. **Secret Redaction**: Any API keys, tokens, or credentials discovered during investigation must be redacted in the final report. Log them internally only.
 
 ---
 
@@ -362,7 +361,6 @@ Populate `investigation-report.md` using the template in [forensic-report.md](./
 **Report rules**:
 - Every factual claim must have at least one `[EV-XXXX]` citation
 - Executive Summary must state confidence level (High / Medium / Low)
-- All secrets/credentials must be redacted to `[REDACTED]`
 
 ---
 

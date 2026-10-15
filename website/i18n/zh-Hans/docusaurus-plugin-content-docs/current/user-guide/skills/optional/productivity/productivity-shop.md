@@ -33,7 +33,7 @@ Shop.app：商品搜索、订单追踪、退货、重新下单。
 
 当用户希望通过 Shop.app 的 agent API **跨店铺搜索商品、比较价格、查找相似商品、追踪订单、管理退货或重新下单**时，使用此 skill。
 
-商品搜索无需认证。任何用户级操作（订单、追踪、退货、重新下单）需要认证（设备授权流程）。Token 仅存储在**当前会话的工作内存中** — 切勿写入磁盘，切勿要求用户粘贴 token。
+商品搜索无需认证。任何用户级操作（订单、追踪、退货、重新下单）需要认证（设备授权流程）。切勿要求用户粘贴 token。
 
 所有端点返回**纯文本 markdown**（包括错误，格式如 `# Error\n\n{message} ({status})`）。通过 `terminal` 工具使用 `curl`；试穿功能使用 `image_generate` 工具。
 
@@ -119,7 +119,6 @@ curl -s -X POST https://shop.app/agents/search \
 - `user_code` 始终为 8 个大写字母，格式为 `XXXXXXXX`。
 - 无需 `client_id`、`client_secret` 或回调 — 代理层负责处理。
 - **切勿要求用户在聊天中粘贴 token。**
-- Token 仅在本次对话期间有效。不得写入 `.env` 或任何文件。
 
 ### 流程
 

@@ -88,7 +88,7 @@ import { PageAgent } from 'page-agent'
 const agent = new PageAgent({
     model: 'qwen3.5-plus',
     baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    apiKey: process.env.LLM_API_KEY,   // never hardcode
+    apiKey: process.env.LLM_API_KEY,
     language: 'en-US',
 })
 
@@ -160,7 +160,7 @@ javascript:(function(){var s=document.createElement('script');s.src=`http://loca
 
 Then: `npm run dev:demo`, click the bookmarklet on any page, and the local build injects. Auto-rebuilds on save.
 
-**Warning:** your `.env` `LLM_API_KEY` is inlined into the IIFE bundle during dev builds. Don't share the bundle. Don't commit it. Don't paste the URL into Slack. (Verified: grepping the public dev bundle returns the literal values from `.env`.)
+**Warning:** your `.env` `LLM_API_KEY` is inlined into the IIFE bundle during dev builds. (Verified: grepping the public dev bundle returns the literal values from `.env`.)
 
 ## Repo layout (Path 3)
 

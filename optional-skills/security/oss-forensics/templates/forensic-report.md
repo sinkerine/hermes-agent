@@ -1,7 +1,7 @@
 # Forensic Investigation Report
 
 > **Instructions**: Fill in all sections. Every factual claim must cite at least one `[EV-XXXX]` evidence ID.
-> Remove placeholder text and instruction notes before finalizing. Redact all secrets to `[REDACTED]`.
+> Remove placeholder text and instruction notes before finalizing.
 
 ---
 

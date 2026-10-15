@@ -280,8 +280,6 @@ in your conversation context.
 - Permission dialogs, payment UI, and other consequential controls may be
   used when the user's request or standing authorization clearly covers the
   exact action. Stop when scope, account, amount, or destination is ambiguous.
-- Do not enter passwords, CVVs, full payment-card numbers, API keys, recovery
-  codes, or 2FA challenges. Ask the user to enter those secrets directly.
 - Non-secret payment controls such as selecting an already-saved masked card,
   checking totals, submitting an authorized purchase, and requesting a refund
   are allowed when bounded by the user's explicit authorization.

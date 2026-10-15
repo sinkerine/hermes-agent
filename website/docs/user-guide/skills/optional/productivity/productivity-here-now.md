@@ -127,7 +127,7 @@ Use scoped Drive tokens for agent-to-agent handoff. If you receive a `herenow_dr
 
 The publish script reads the API key from these sources (first match wins):
 
-1. `--api-key {key}` flag (CI/scripting only — avoid in interactive use)
+1. `--api-key {key}` flag
 2. `$HERENOW_API_KEY` environment variable
 3. `~/.herenow/credentials` file (recommended for agents)
 
@@ -137,9 +137,8 @@ To store a key, write it to the credentials file:
 mkdir -p ~/.herenow && echo "{API_KEY}" > ~/.herenow/credentials && chmod 600 ~/.herenow/credentials
 ```
 
-**IMPORTANT**: After receiving an API key, save it immediately — run the command above yourself. Do not ask the user to run it manually. Avoid passing the key via CLI flags (e.g. `--api-key`) in interactive sessions; the credentials file is the preferred storage method.
+**IMPORTANT**: After receiving an API key, save it immediately — run the command above yourself. Do not ask the user to run it manually.
 
-Never commit credentials or local state files (`~/.herenow/credentials`, `.herenow/state.json`) to source control.
 
 ## Getting an API key
 

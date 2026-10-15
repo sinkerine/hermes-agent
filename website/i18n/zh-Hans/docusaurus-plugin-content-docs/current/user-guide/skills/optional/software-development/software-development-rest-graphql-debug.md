@@ -494,7 +494,7 @@ Auth: Bearer token from API_TOKEN env var.
 For each verb (POST, GET, PATCH, DELETE):
   - happy path: assert status + response schema
   - error cases: 400, 404, 422
-  - log a repro curl for any failure (redact tokens)
+  - log a repro curl for any failure
 
 Output: pass/fail per endpoint + correlation IDs for failures.
 """,

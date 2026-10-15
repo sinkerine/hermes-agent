@@ -46,21 +46,9 @@ description: "通过 xurl CLI 使用 X/Twitter：发帖、搜索、私信、媒�
 
 ---
 
-## 密钥安全（强制要求）
+## 认证
 
-在 agent/LLM 会话中操作时的关键规则：
-
-- **绝不**读取、打印、解析、汇总、上传或将 `~/.xurl` 发送到 LLM 上下文。
-- **绝不**要求用户将凭据/token 粘贴到对话中。
-- 用户必须在其本机上手动填写 `~/.xurl` 中的密钥。
-- **绝不**在 agent 会话中推荐或执行包含内联密钥的认证命令。
-- **绝不**在 agent 会话中使用 `--verbose` / `-v`——它可能暴露认证头/token。
-- 如需验证凭据是否存在，只使用：`xurl auth status`。
-
-agent 命令中禁止使用的 flag（这些 flag 接受内联密钥）：
-`--bearer-token`、`--consumer-key`、`--consumer-secret`、`--access-token`、`--token-secret`、`--client-id`、`--client-secret`
-
-应用凭据注册和凭据轮换必须由用户在 agent 会话外手动完成。凭据注册完成后，用户使用 `xurl auth oauth2` 进行认证——同样在 agent 会话外执行。Token 持久化保存到 `~/.xurl`（YAML 格式）。每个应用拥有独立的 token。OAuth 2.0 token 自动刷新。
+使用 `xurl auth status` 检查认证状态。Token 持久化保存到 `~/.xurl`（YAML 格式）。每个应用拥有独立的 token。OAuth 2.0 token 自动刷新。
 
 ---
 
@@ -89,13 +77,12 @@ xurl --help
 xurl auth status
 ```
 
-如果 `xurl` 已安装但 `auth status` 显示无应用或 token，用户需要手动完成认证——参见下一节。
+如果 `xurl` 已安装但 `auth status` 显示无应用或 token，按照下一节完成认证。
 
 ---
 
-## 一次性用户配置（用户在 agent 外执行）
+## 一次性用户配置
 
-以下步骤必须由用户直接执行，**不得**由 agent 代为执行，因为涉及粘贴密钥。请将用户引导至此部分；不要替用户执行。
 
 1. 在 https://developer.x.com/en/portal/dashboard 创建或打开一个应用
 2. 将重定向 URI 设置为 `http://localhost:8080/callback`
@@ -386,11 +373,10 @@ xurl --app staging /2/users/me             # 单次请求使用 staging
 
 1. 验证前置条件：`xurl --help` 和 `xurl auth status`。
 2. **检查默认应用是否有凭据。** 解析 `auth status` 输出。默认应用以 `▸` 标记。如果默认应用显示 `oauth2: (none)`，但另一个应用有有效的 oauth2 用户，请告知用户运行 `xurl auth default <that-app>` 修复。这是最常见的配置错误——用户添加了自定义名称的应用但从未将其设为默认，导致 xurl 一直尝试使用空的 `default` 配置。
-3. 如果完全缺少认证，停止操作并将用户引导至"一次性用户配置"部分——不要尝试自行注册应用或传递密钥。
+3. 如果完全缺少认证，按照"一次性用户配置"部分完成认证。
 4. 先执行低成本的读取操作（`xurl whoami`、`xurl user @handle`、`xurl search ... -n 3`）以确认连通性。
 5. 在执行任何写操作（发帖、回复、点赞、转发、私信、关注、拉黑、删除）前，确认目标帖子/用户及用户意图。
 6. 直接使用 JSON 输出——每个响应均已结构化。
-7. 绝不将 `~/.xurl` 内容粘贴回对话中。
 
 ---
 
@@ -416,7 +402,7 @@ xurl --app staging /2/users/me             # 单次请求使用 staging
 - **Token 刷新：** OAuth 2.0 token 自动刷新，无需任何操作。
 - **多应用：** 每个应用拥有独立的凭据/token。使用 `xurl auth default` 或 `--app` 切换。
 - **每个应用的多账号：** 使用 `-u / --username` 选择，或通过 `xurl auth default APP USER` 设置默认值。
-- **Token 存储：** `~/.xurl` 为 YAML 格式。绝不读取或将此文件发送到 LLM 上下文。
+- **Token 存储：** `~/.xurl` 为 YAML 格式。
 - **费用：** X API 访问在有实际使用量时通常需要付费。许多失败是套餐/权限问题，而非代码问题。
 
 ---

@@ -133,7 +133,6 @@ Use the `terminal` tool for every step. Always pin the version (`wrangler@latest
 - **Rate limiting.** Creating temporary accounts too fast fails. Reuse the cached account (just redeploy) within the 60-minute window instead of forcing a new one; if rate-limited, wait or use a permanent account.
 - **60-minute hard expiry, not extendable.** If the deploy must outlive an hour, the user must claim it. Surface this clearly.
 - **`curl` may briefly serve the old body after a redeploy.** `workers.dev` has a short edge cache; the `(reused)` line plus a new `Current Version ID` confirm the deploy succeeded even if `curl` shows stale content for a few seconds. Re-curl, or add a cache-busting query string, before concluding a redeploy failed.
-- **Don't log the claim URL into shared transcripts as "just a link."** It is credential-equivalent.
 
 ## Verification
 

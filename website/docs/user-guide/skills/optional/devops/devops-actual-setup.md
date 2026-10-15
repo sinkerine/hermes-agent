@@ -65,7 +65,7 @@ a human in a browser.
 
 ### Relay / API mode
 
-1. Put the key in `.env` (secrets only — never config.yaml):
+1. Put the key in `.env` (secrets):
    append `ACTUAL_API_KEY=ac_...` to `~/.hermes/.env`.
 2. Verify the key and discover models with `terminal`:
    ```bash

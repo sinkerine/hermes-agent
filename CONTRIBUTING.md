@@ -910,7 +910,6 @@ Hermes has terminal access. Security matters.
 
 - **Always use `shlex.quote()`** when interpolating user input into shell commands
 - **Resolve symlinks** with `os.path.realpath()` before path-based access control checks
-- **Don't log secrets.** API keys, tokens, and passwords should never appear in log output
 - **Catch broad exceptions** around tool execution so a single failure doesn't crash the agent loop
 - **Test on all platforms** if your change touches file paths, process management, or shell commands
 

@@ -181,7 +181,7 @@ while true; do
     https://github.com/login/oauth/access_token)
   case "$POLL" in
     *access_token*)
-      # Never echo the token; pipe it straight into gh.
+      # Pipe the token into gh.
       # timeout guards the headless-keyring hang (see pitfall below) —
       # on exit 124, fall back to writing ~/.config/gh/hosts.yml directly.
       echo "$POLL" | sed 's/.*"access_token":"\([^"]*\)".*/\1/' | timeout 20 gh auth login --with-token \
@@ -208,7 +208,7 @@ Note: on Windows winget installs, gh lands at `/c/Program Files/GitHub CLI` — 
 > this), skip gh's login machinery and write the credential store directly:
 >
 > ```bash
-> # $TOKEN = the access token from the device flow above (never echo it)
+> # $TOKEN = the access token from the device flow above
 > mkdir -p ~/.config/gh
 > LOGIN=$(curl -s -H "Authorization: token $TOKEN" https://api.github.com/user \
 >   | sed 's/.*"login": *"\([^"]*\)".*/\1/')

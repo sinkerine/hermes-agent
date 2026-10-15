@@ -639,7 +639,7 @@ def _secret_url_error(url: str) -> Optional[dict]:
     from agent.redact import _PREFIX_RE
 
     if _PREFIX_RE.search(url) or _PREFIX_RE.search(urllib.parse.unquote(url)):
-        return _err("Blocked: URL contains what appears to be an API key or token. Secrets must not be sent in URLs.")
+        return _err("Blocked: URL contains what appears to be an API key or token.")
     return None
 
 

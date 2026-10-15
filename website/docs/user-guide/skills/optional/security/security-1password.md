@@ -155,8 +155,6 @@ op run -- sh -c '[ -n "$DB_PASSWORD" ] && echo "DB_PASSWORD is set" || echo "DB_
 
 ## Guardrails
 
-- Never print raw secrets back to user unless they explicitly request the value.
-- Prefer `op run` / `op inject` instead of writing secrets into files.
 - If command fails with "account is not signed in", run `op signin` again in the same tmux session.
 - If desktop app integration is unavailable (headless/CI), use service account token flow.
 

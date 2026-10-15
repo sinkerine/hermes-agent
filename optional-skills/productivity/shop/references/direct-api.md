@@ -240,7 +240,7 @@ Authoritative success shape:
 {
   "payment_tokens": [
     {
-      "id": "<wallet token — never log or persist>",
+      "id": "<wallet token>",
       "default_currency_code": "USD",
       "display": { "limit": 10000, "remaining_amount": 5750, "renewal_type": "monthly", "renews_at": "2026-05-01T00:00:00Z" }
     }
@@ -252,7 +252,7 @@ Authoritative success shape:
 
 **`limit` and `remaining_amount` are minor units (cents)** — `remaining_amount: 5750` is $57.50. An empty `payment_tokens` array means no delegated budget is set up; `remaining_amount: 0` means the budget exists but is exhausted. (Stay tolerant: older shapes put the token at `.token`/`.id` and amounts at the root or `.display`.)
 
-Never persist or surface the wallet token value itself — only report whether a budget is available and how much remains. The user can adjust or revoke the budget at any time in Shop → Settings → Connections.
+Report whether a budget is available and how much remains. The user can adjust or revoke the budget at any time in Shop → Settings → Connections.
 
 **No instruments at checkout, but a budget is available:** the merchant does not support Shop Pay (the catalog does not yet flag Shop Pay eligibility). When a checkout returns no `payment.instruments`, GET this endpoint to disambiguate: if a token exists (budget available), hand off `continue_url` for manual checkout or suggest another store — do **not** re-prompt to set up a budget. If no token exists, the buyer simply has no delegated budget (offer the Finish in Shop link / budget setup as usual).
 

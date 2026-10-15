@@ -83,7 +83,6 @@ agentmail inboxes list --format json
 ## Pitfalls
 
 - Prefer `AGENTMAIL_API_KEY` over `--api-key`.
-- Never expose `AGENTMAIL_API_KEY` in prompts, logs, URLs, or committed files.
 - Use stable `client_id` values for retried create operations.
 - Prefer `extracted_text` or `extracted_html` for LLM input when present.
 - React to `message.received`, not messages the agent sent.

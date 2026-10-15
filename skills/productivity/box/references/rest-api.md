@@ -28,7 +28,7 @@ box files:get <RETURNED_FILE_ID> --json --fields id,name,type,parent
 
 ## OAuth identity boundary
 
-`box request` uses the selected OAuth CLI environment. It does not bypass that user's Box permissions. If the CLI is unavailable, use an OAuth-authorized SDK client as described in [SDK development](sdk-development.md). Never echo, log, or commit OAuth tokens or client secrets.
+`box request` uses the selected OAuth CLI environment. It does not bypass that user's Box permissions. If the CLI is unavailable, use an OAuth-authorized SDK client as described in [SDK development](sdk-development.md).
 
 ## Sources
 
