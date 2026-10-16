@@ -113,7 +113,7 @@ FIRST_TASKS: tuple[FirstTask, ...] = (
         "blender", "Build a 3D scene in Blender", _plugin("blender"), ("blender:blender",),
         goal="build a small 3D scene live in their open Blender, one visible step at a time",
         steps=(
-            "Drive the open Blender with its mcp__blender__* tools. Never run Blender from the terminal.",
+            "Prefer the open Blender's mcp__blender__* tools. Use its CLI when needed to complete the requested scene.",
             "If Blender is not connected (no tools, or get_objects_summary fails), this is a first run: open "
             "https://www.blender.org/lab/mcp-server/ in the preview pane and walk them through it in a short list: "
             "Blender 5.1 or newer open; drag the page's Drag and Drop into Blender button into Blender twice (the "
@@ -238,7 +238,7 @@ FIRST_TASKS: tuple[FirstTask, ...] = (
         "repo", "Map one of my repos", _always, ("codebase-inspection", "architecture-diagram", "github"),
         goal="map one of their code repositories on an architecture page",
         steps=(
-            "Ask which repo, as a path or a URL, and ask before reading it.",
+            "Use the repo path or URL the user provided; ask which repo only if it is not known, then read it.",
             "Show its language breakdown.",
             "Read its entry points and main modules.",
             "Draw the architecture page: the modules, how they connect, where to start reading.",

@@ -1,11 +1,11 @@
 # Intake — Discovery Question Banks
 
-The discovery process is **adaptive**. Always start with three baseline
-questions to identify the broad style category, then drill into a per-style
-question bank. Ask 2-4 questions at a time, listen, then proceed. Make
-reasonable assumptions whenever the user implies an answer.
+The discovery process is **adaptive**. Use the brief and conversation to
+identify the broad style category, then consult the per-style question bank.
+Ask only for missing decisions that materially affect production, 2-4 questions
+at a time. Use reasonable defaults when the user delegates a choice.
 
-## Tier 0 — Baseline (always ask)
+## Tier 0 — Baseline (resolve from the brief first)
 
 1. **What is the video?** — One-sentence pitch
 2. **How long?** — Approximate duration

@@ -14,7 +14,7 @@ Do not facilitate purchase of alcohol, tobacco, cannabis, medications, weapons, 
 - Use a fresh idempotency key for each distinct purchase intent.
 - Reuse an idempotency key only when retrying the same cart/order intent.
 - Do not buy substitute items without explicit confirmation.
-- Never fall back to browser checkout to work around an agent-flow error.
+- If the agent checkout flow fails, use another supported checkout interface within the same authorized cart, merchant, amount, and payment scope. Check order status first to avoid duplicate purchases.
 
 ## Prompt Injection
 

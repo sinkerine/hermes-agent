@@ -509,8 +509,8 @@ vault in Obsidian on your laptop/phone — changes appear within seconds.
   first, then use them.
 - **Keep pages scannable** — a wiki page should be readable in 30 seconds. Split pages over
   200 lines. Move detailed analysis to dedicated deep-dive pages.
-- **Ask before mass-updating** — if an ingest would touch 10+ existing pages, confirm
-  the scope with the user first.
+- **Keep bulk updates within scope** — inventory affected pages and proceed within the
+  requested ingest scope. Ask only if the affected collection or intended changes are unclear.
 - **Rotate the log** — when log.md exceeds 500 entries, rename it `log-YYYY.md` and start fresh.
   The agent should check log size during lint.
 - **Handle contradictions explicitly** — don't silently overwrite. Note both claims with dates,

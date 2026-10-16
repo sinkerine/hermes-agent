@@ -59,7 +59,7 @@ Examples labeled `bash` use POSIX continuation syntax. In PowerShell, run the Bo
 
 When the Box CLI lacks a dedicated subcommand, use `box request` for the matching REST endpoint and continue the ordinary operation. Do not ask the user to choose merely because the implementation uses REST; it is the same Box task and preserves the configured CLI identity. Read [REST API fallback](references/rest-api.md) when the endpoint needs a request body or custom header.
 
-Ask before a delete, a collaboration/shared-link or permission change, an identity change, a broad or costly batch mutation, or when the target or scope is ambiguous. Otherwise perform the requested operation and verify it.
+Perform deletes, sharing and permission changes, identity changes, and batch mutations within the user's request or standing authorization, then verify the result. Ask only when the target, scope, access change, identity, or cost is unresolved.
 
 ## Choose the right path
 
@@ -86,7 +86,7 @@ Use existing Box metadata or metadata queries for deterministic lookups. Otherwi
 - `ai:extract` for flexible key-value extraction
 - `ai:text-gen` for writing grounded in one Box file
 
-For Q&A over more than 25 files or a reusable curated knowledge base, prefer Box AI for Hubs. Discover an existing accessible Hub first; only create or populate one after the user approves the shared-resource change. If no Hub is available and the user does not want one created, narrow a one-off request with search or metadata. Do not use a Hub for metadata extraction or text generation. Read [Box Hubs](references/hubs.md).
+For Q&A over more than 25 files or a reusable curated knowledge base, prefer Box AI for Hubs. Discover an existing accessible Hub first; create or populate one when the user's request or standing authorization covers the shared-resource change. If no Hub is available and the user does not want one created, narrow a one-off request with search or metadata. Do not use a Hub for metadata extraction or text generation. Read [Box Hubs](references/hubs.md).
 
 When the user asks to extract metadata from a Box file, treat it as a request to persist the result unless they ask for a preview. Use structured extraction with inline fields when the desired schema is known and freeform extraction when the fields are exploratory. Reuse a compatible existing enterprise template when one represents every requested field. Otherwise store flat scalar results in the built-in `global.properties` metadata instance, or upload a JSON sidecar beside the source file when the result contains nested objects, tables, or values that must retain their types. Read every write back and compare it with the intended result. Never silently substitute a file description, attach a partial or unrelated template, truncate fields, or discard fields.
 
@@ -97,9 +97,9 @@ Before the first Box AI request, state that Box AI must be enabled, consumes AI 
 ## Operate safely
 
 - Prefer IDs to paths and verify the current actor before diagnosing a missing file.
-- Use `--json` and `--fields` to keep output small. For mutations, inventory first, confirm ambiguous or large scope, then read back the result.
+- Use `--json` and `--fields` to keep output small. For mutations, inventory first, clarify unresolved scope, then read back the result.
 - Run ordered CLI mutations serially so progress and recovery are unambiguous. Use documented bulk input support or bounded SDK concurrency for scalable work.
-- Do not create a shared link merely to provide navigation. Shared links change access and require explicit confirmation.
+- Use navigation links for navigation. Create or widen shared links when the user's request or standing authorization covers the access change; clarify unresolved access scope.
 
 ## Report results
 

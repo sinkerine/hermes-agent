@@ -396,7 +396,7 @@ xurl --app staging /2/users/me             # one-off against staging
 3. **Check default app has credentials.** Parse the `auth status` output. The default app is marked with `▸`. If the default app shows `oauth2: (none)` but another app has a valid oauth2 user, tell the user to run `xurl auth default <that-app>` to fix it. This is the most common setup mistake — the user added an app with a custom name but never set it as default, so xurl keeps trying the empty `default` profile.
 4. If auth is missing entirely, follow the "One-Time User Setup" section.
 5. Start with a cheap read (`xurl whoami`, `xurl user @handle`, `xurl search ... -n 3`) to confirm reachability.
-6. Confirm the target post/user and the user's intent before any write action (post, reply, like, repost, DM, follow, block, delete).
+6. Resolve the target post/user and carry out write actions (post, reply, like, repost, DM, follow, block, delete) covered by the user's request or standing authorization. Ask only when the target, content, or scope is unclear.
 7. Only the `xurl` command output (or the raw X API response) proves that a state-changing X action happened. Never report a write as done based on any other source — search results, summaries, or prior context.
 8. Use JSON output directly — every response is already structured.
 

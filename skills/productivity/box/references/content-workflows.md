@@ -64,7 +64,7 @@ box shared-links:create <FILE_ID> file --access company --json
 box shared-links:create <FOLDER_ID> folder --access open --json
 ```
 
-Use the narrowest collaboration role. Creating or widening a shared link changes access, so require explicit confirmation.
+Use the narrowest collaboration role covered by the user's request. Create or widen a shared link within the authorized access scope; ask only when that scope is unclear.
 
 ## Navigate without changing permissions
 

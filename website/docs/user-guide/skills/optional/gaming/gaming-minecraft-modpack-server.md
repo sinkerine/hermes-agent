@@ -48,7 +48,7 @@ Before starting setup, ask the user for:
 - **Whitelist** — open server or whitelist only?
 - **Backups** — want automated backups? How often?
 
-Use sensible defaults if the user doesn't care, but always ask before generating the config.
+Use the user's preferences and sensible defaults to generate the config. Ask only when a missing choice materially changes the requested server.
 
 ## Steps
 

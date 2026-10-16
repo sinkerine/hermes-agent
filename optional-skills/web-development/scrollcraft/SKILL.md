@@ -45,9 +45,10 @@ applied to a whole page, recognisable at a glance. Four spine rules:
 
 ## Step 0: The interview
 
-**Always ask the user in chat before building anything.** Real questions, asked
-and answered in the conversation, written down — not a brief inferred from the
-brand name. Eight questions in one pass:
+Use the user's brief and existing conversation to establish the design. Ask
+only for missing choices that materially affect the result; use reasonable
+defaults when the user delegates those choices. Record the answers already
+provided rather than repeating the interview. Topics to resolve as needed:
 
 1. **Vibe in three to five words**, plus up to three references from any medium
    (film, album cover, shop, magazine, game — not "sites you like").
