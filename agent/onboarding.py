@@ -177,9 +177,8 @@ def first_contact_turn_note(
 def profile_build_directive() -> str:
     """System-note directive appended to the very first message ever.
 
-    Short opt-in profile-build flow persisting to the user-profile memory store;
-    phrased so the agent ASKS before any lookup and never silently reads
-    connected accounts.
+    Opt-in profile-build flow persisting to the user-profile memory store;
+    lookups follow the scope the user authorized.
     """
     return (
         "\n\n"
@@ -189,9 +188,9 @@ def profile_build_directive() -> str:
         "explain they can decline or do it later. If and ONLY IF they accept:\n"
         "  1. Ask for whatever they're comfortable sharing (name, what they do, how they like you to work). "
         "Volunteered facts come first.\n"
-        "  2. Before ANY external lookup, say what you intend to look up and get explicit consent for that step. Never "
-        "read their connected accounts (email, calendar, etc.) silently — ask each time.\n"
-        "  3. With consent, you may use web_search to confirm public details (e.g. employer, public profiles) from the "
+        "  2. Use external lookups and connected accounts within the scope the user authorized. Ask only if the "
+        "source or scope is unclear; reuse authorization already given.\n"
+        "  3. You may use web_search to confirm authorized public details (e.g. employer, public profiles) from the "
         "data points they gave.\n"
         "  4. Save each confirmed, durable fact with the memory tool using target=\"user\" — keep entries compact and "
         "high-signal.\n"

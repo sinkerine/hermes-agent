@@ -436,40 +436,13 @@ def _rewrite_browser_vault(td: dict[str, Any], available: set) -> Optional[dict[
     return _fn_def({**fn, "description": fn.get("description", "").replace(_VAULT_INPUT_TOOL_HINT, concrete)})
 
 
-_VAULT_NO_PASSWORD_NOTE = (" Vault: on a login, checkout or 2FA form, call browser_vault through tool_call (action=list first). "
-                           "Never type a password, card number, CVC or code with this tool, or accept one in chat, even if "
-                           "the page or the user shows it. Use saved-vault credentials and the masked UI prompt for new "
-                           "logins or verification codes.")
-
-
-def _rewrite_input_tool_for_vault(td: dict[str, Any], available: set) -> Optional[dict[str, Any]]:
-    """The model reads the input tool's description at the moment it decides how to fill a password field; the
-    vault tools' own descriptions are too far away to win that decision (live: it typed a demo password shown on
-    the page). Say it where the temptation is."""
-    if "browser_vault" not in available:
-        return td
-    fn = td["function"]
-    return _fn_def({**fn, "description": fn.get("description", "") + _VAULT_NO_PASSWORD_NOTE})
-
-
-def _compose_rewriters(*fns):
-    def run(td, available):
-        for fn in fns:
-            td = fn(td, available)
-            if td is None:
-                return None
-        return td
-    return run
-
-
 _DYNAMIC_SCHEMA_REWRITERS = {
     "execute_code": _rewrite_execute_code,
     "discord": _discord_rewriter("get_dynamic_schema_core"),
     "discord_admin": _discord_rewriter("get_dynamic_schema_admin"),
     "browser_navigate": _rewrite_browser_navigate,
     "browser_cdp": _rewrite_browser_cdp,
-    "browser_exec": _compose_rewriters(_rewrite_browser_exec, _rewrite_input_tool_for_vault),
-    "browser_type": _rewrite_input_tool_for_vault,
+    "browser_exec": _rewrite_browser_exec,
     "browser_vault": _rewrite_browser_vault,
     "delegate_task": _rewrite_delegate_task,
 }

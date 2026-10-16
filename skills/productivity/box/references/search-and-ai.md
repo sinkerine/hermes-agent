@@ -128,7 +128,7 @@ If the user explicitly requires reusable typed enterprise metadata, explain that
 
 Box AI processes source files through Box's governed AI integration instead of downloading source bodies into Hermes' coding-model context. Box AI responses returned to Hermes can still contain confidential information. Do not claim that no third-party model provider is involved or that content can never be used for training; follow Box's current trust and plan documentation.
 
-Before the first Box AI request, explain that Box AI must be enabled, calls consume AI units, and answers remain constrained by the current actor's permissions. For a material batch, state the file count and ask for confirmation. Do not promise a unit balance or per-call cost unless Box exposes it for the current account.
+Before the first Box AI request, explain that Box AI must be enabled, calls consume AI units, and answers remain constrained by the current actor's permissions. For a material batch, state the file count and proceed within the requested scale; ask only when scope or expected AI-unit use is unresolved. Do not promise a unit balance or per-call cost unless Box exposes it for the current account.
 
 If Box AI is unavailable or out of units, offer existing metadata/search, a smaller sample, enabling units, or explicit approval for local/external analysis. Never silently fall back to downloading files for an external model.
 

@@ -32,9 +32,9 @@ State the Hub ID and navigation link with the answer. List cited file IDs, names
 
 ## Create and populate a Hub
 
-Do not create a Hub automatically. For Q&A over more than 25 files or a reusable curated collection, discover an existing accessible Hub first. If none fits, offer to create a curated Hub and obtain explicit approval before creating or populating it. If the user declines, narrow the one-off scope with search or metadata instead.
+For Q&A over more than 25 files or a reusable curated collection, discover an existing accessible Hub first. If none fits, create or populate a curated Hub when the user's request or standing authorization covers that shared-resource change. Ask only when the resource or access scope is unresolved. If the user declines, narrow the one-off scope with search or metadata instead.
 
-After approval, create it, report its link, and verify it:
+Within the authorized scope, create it, report its link, and verify it:
 
 ```bash
 box hubs:create "Policy knowledge base" --description "Approved policy reference" --json

@@ -121,7 +121,7 @@ Manual token exchange, only when the CLI cannot be installed: [catalog-mcp.md](r
 - Offer sign-in if signed-out — see *Sign in*. Once signed in, you can run `shop orders search` (≤10 calls) to learn the buyer's brand and product preferences, then fold those into your search terms and filters.
 - Before searching, know the buyer's **country and currency** (ask if you don't have them) and pass both via `--country`/`--currency` on every search and catalog call so prices localize consistently.
 - Search broad first, then refine with filters or alternate terms. For weak results: try alternative terms, broaden terms, drop adjectives, split compound queries, or use category/brand terms. The Shop catalog is HUGE so query expansion helps a lot! Aim to surface 6–8 products per request.
-- NEVER fall back to web search unless explicitly requested by the user.
+- Prefer the Shop catalog; use web search when needed to complete the requested product research.
 - Paginate with `--cursor` (echoed in the search footer when more results exist); prefer refining the query over deep paging. Keep `--limit` small — 50 is the max but burns tokens.
 - Ignore `eligible.native_checkout: false`; you can still order the item.
 - Apply message formatting rules on all subsequent conversation turns
@@ -168,7 +168,7 @@ When the item is visual (clothing, shoes, accessories, furniture, decor, art) **
 
 ## Checkout
 - Complete only via the agent flow on the merchant domain. **Never** fall back to browser checkout to bypass an agent-flow error.
-- Before completing, verify sign-in and confirm with the user: purchase intent, variant(s), quantity, price, shipping address, shipping method, and total. `checkout complete` requires `--confirm`, so completing is always a deliberate, separate step — pass `--confirm` only after that confirmation.
+- Before completing, verify sign-in and resolve purchase intent, variant(s), quantity, price, shipping address, shipping method, and total from the user's request and standing authorization. Ask only for unresolved choices or changes outside that scope. `checkout complete` requires `--confirm`; pass it when the resolved order matches the authorized purchase.
 
 **Reading the `checkout create` / `update` response:**
 - Inspect `status`, `email`, addresses, `continue_url`, and `payment.instruments`.

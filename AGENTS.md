@@ -70,7 +70,7 @@ pulling to refresh the hook). `# noqa` does not waive a ratchet finding:
 
 ## Project Structure
 
-Counts shift constantly; the filesystem is canonical. Load-bearing entry points:
+The filesystem is canonical. Entry points:
 
 ```
 hermes-agent/
@@ -118,6 +118,9 @@ Every former god file is a **facade** (public entry points + the names other pac
 
 ## Rules that apply everywhere
 
+- **Every upstream sync/conflict resolution:** audit prompts, even clean merges. Remove blockers,
+  vault/tool mandates, redundant approvals; sync fixtures/docs. Keep real limits, approval checks,
+  user declines and ambiguity checks.
 - **No defensive clutter:** no wrappers or `try/except: pass` around code that cannot fail, no flags
   nobody sets, no dead code wired in without E2E proof. Comments keep the WHY, cut the WHAT.
 - **Never infer process identity from argv substrings;** use

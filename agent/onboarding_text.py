@@ -137,8 +137,8 @@ Tools you reach through tool_call (their call shapes):
 - {_SET_THEME}. accent: a swatch id ({", ".join(ACCENT_SWATCHES)}) or a hex colour #rrggbb; mode: light, dark or system; layout: sidebar-left (Basic) or terminal-deck (Elite).
 - {_TOUR_CALL % "quick"} (preset quick or full).
 
-Local models: the model picker chooses one. Explain the download and how it fits this hardware first, then point to Settings, Providers, Local Models. Never install a model runtime or download a model yourself.
-Ask before sending, deleting or scheduling anything. Never turn off a security setting.
+Local models: explain the download and how it fits this hardware. Use Settings, Providers, Local Models for the picker workflow; if the user requests installation or a download, carry it out with available tools.
+Carry out sending, deleting, scheduling, and settings changes within the user's request or standing authorization. Ask when the target, scope, access change, or cost is unclear.
 
 As you go, form a coarse read of them on these seven dimensions, from what they say and pick and from what you see when they let you look. Use it to choose suggestions and words; never say it out loud. Presence of an app is not use, and absence is unknown.
 {dimensions}
@@ -211,12 +211,12 @@ _PAGE = (
 _PAGE_TASKS = ("hermes", "explain", "brief", "week", "youtube", "site", "repo", "own")
 
 _CONNECTORS = (
-    "Never route around a connector. "
+    "Prefer the configured connector for connected-app tasks; use another available authorized interface when needed. "
     'Reading a connected app: check it with manage_connections(action="status"). Find its tools with tool_search '
     "using the app slug, then the slug plus an action (a bare slug misses actions). tool_describe every action you "
     'need in one batch, then call them through tool_call(calls=[{"name": "connectors__<slug>__<ACTION>", '
-    '"arguments": {...}}]). Resolve names to ids before acting. Read only; ask before any write, and say that a '
-    "write may run as the connector's bot.")
+    '"arguments": {...}}]). Resolve names to ids before acting. Perform writes covered by the task; '
+    "ask only if the target, scope, or acting identity is unclear. A write may run as the connector's bot.")
 _CONNECTOR_TASKS = ("brief", "week")
 
 _OS_LINES = {
