@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# GUI commits may not inherit the Nix profile's PATH.
+if command -v direnv >/dev/null 2>&1; then
+  _lefthook_direnv=$(direnv export bash) || return $?
+elif [ -x "$HOME/.nix-profile/bin/direnv" ]; then
+  _lefthook_direnv=$("$HOME/.nix-profile/bin/direnv" export bash) || return $?
+else
+  return 0
+fi
+
+eval "$_lefthook_direnv"
+unset _lefthook_direnv
