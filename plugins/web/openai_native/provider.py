@@ -23,8 +23,9 @@ from plugins.web._common import BaseWebSearchProvider, search_fail
 
 _UNSUPPORTED_MSG = (
     "openai-native declares OpenAI's server-side web_search tool; it cannot run as a "
-    "client-side search and requires the Codex Responses transport (provider "
-    "openai-codex). For client-side search use firecrawl (default) or another backend."
+    "client-side search and requires a Codex Responses endpoint (the official "
+    "openai-codex provider or a verified URL in web.openai_native_proxy_urls). "
+    "For client-side search use firecrawl (default) or another backend."
 )
 
 
