@@ -194,8 +194,9 @@ def _openai_prefers_native_web_search() -> bool:
     difference: it fails CLOSED (False). A resolution failure must leave the client-side
     Hermes tool in place rather than swap in a built-in the endpoint might reject.
 
-    Only consulted for the Codex backend (``chatgpt.com/backend-api/codex``); a custom
-    OpenAI-compatible endpoint does not implement the server-side tool.
+    The built-in is selected on the official Codex backend or on custom Responses
+    base URLs explicitly listed in ``web.openai_native_proxy_urls`` after a live probe.
+    Unknown custom endpoints retain the Hermes client-side search function.
     """
     try:
         from agent.web_search_registry import get_active_search_provider
@@ -207,6 +208,20 @@ def _openai_prefers_native_web_search() -> bool:
         from tools.web_tools import _get_search_backend
 
         return (_get_search_backend() or "").strip().lower() == "openai-native"
+    except Exception:
+        return False
+
+
+def _openai_native_proxy_allowed(params: dict[str, Any]) -> bool:
+    """Allow the built-in on explicitly verified custom Responses endpoints only."""
+    try:
+        from hermes_cli.config import load_config
+
+        configured = (load_config().get("web") or {}).get("openai_native_proxy_urls") or []
+        base_url = str(params.get("base_url") or "").strip().rstrip("/")
+        return isinstance(configured, list) and bool(base_url) and any(
+            isinstance(url, str) and url.strip().rstrip("/") == base_url for url in configured
+        )
     except Exception:
         return False
 
@@ -235,11 +250,10 @@ def _alias_wire_tools(
                 {**t, "name": _XAI_CLIENT_WEB_SEARCH_ALIAS} if is_client_web_search(t) else t for t in response_tools
             ]
             wire_aliases[_XAI_CLIENT_WEB_SEARCH_ALIAS] = "web_search"
-    # OpenAI Codex: the Responses endpoint exposes the same server-executed ``web_search``,
-    # and a client-side function of that name collides with it the same way. Unlike xAI there
-    # is no alias fallback: when the user has not selected ``openai-native`` we leave the
-    # client tool untouched, so an endpoint that cannot host the built-in never breaks.
-    if is_codex_backend and response_tools and any(is_client_web_search(t) for t in response_tools):
+    # The official Codex backend and explicitly allowlisted custom Responses proxies
+    # can host the server-executed ``web_search`` built-in. Unknown endpoints keep
+    # the client function. The allowlist is an exact base URL match, not a host guess.
+    if (is_codex_backend or _openai_native_proxy_allowed(params)) and response_tools and any(is_client_web_search(t) for t in response_tools):
         if _openai_prefers_native_web_search():
             response_tools = [t for t in response_tools if not is_client_web_search(t)] + [{"type": "web_search"}]
     # OpenCode Responses backends reserve web_search / search_files as function names (HTTP 400 "custom
