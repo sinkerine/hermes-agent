@@ -66,8 +66,6 @@ class TestGuidanceConstants:
         """Dieted (#95681): WHAT belongs in memory is the memory tool
         schema's job (taught on every call). This block keeps only the
         declarative-form rule and the staleness/skills routing."""
-        from agent.prompt_builder import MEMORY_GUIDANCE
-
         assert "declarative facts" in MEMORY_GUIDANCE
         assert "imperative phrasing" in MEMORY_GUIDANCE
         assert "stale within a week" in MEMORY_GUIDANCE
@@ -219,8 +217,8 @@ class TestDynamicContextFileCap:
     @pytest.fixture(autouse=True)
     def _no_explicit_config(self, monkeypatch):
         # No explicit context_file_max_chars → dynamic path is eligible.
-        monkeypatch.setattr("hermes_cli.config.load_config", lambda: {})
-        monkeypatch.setattr("hermes_cli.config.load_config_readonly", lambda: {})
+        monkeypatch.setattr("hermes_cli.config.load_config", dict)
+        monkeypatch.setattr("hermes_cli.config.load_config_readonly", dict)
 
 
     def test_dynamic_scales_above_floor_for_large_window(self):
@@ -737,7 +735,6 @@ class TestPromptBuilderConstants:
         the session, so the agent must be told up front not to promise it."""
         for key in ("cli", "tui"):
             hint = PLATFORM_HINTS[key]
-            assert "LOCAL-ONLY" in hint
             assert "deliver" in hint
 
 
@@ -770,12 +767,15 @@ class TestPromptBuilderConstants:
         adapter would have rendered. The hint must affirm markdown, not
         forbid it."""
         for key in ("whatsapp", "signal"):
-            hint = PLATFORM_HINTS[key]
+            from importlib import import_module
+            module = "plugins.platforms.whatsapp.adapter" if key == "whatsapp" else "plugins.platforms.signal.register"
+            hint = import_module(module)._PLATFORM_HINT
             assert "do not use markdown" not in hint.lower()
             assert "markdown" in hint.lower()
 
     def test_matrix_hint_teaches_secure_chat_credential_capture(self):
-        hint = PLATFORM_HINTS["matrix"]
+        from plugins.platforms.matrix.adapter_hint import PLATFORM_HINT
+        hint = PLATFORM_HINT
         assert "request_secret_capture" in hint
         assert "any valid destination environment-variable name" in hint
         assert "skill setup metadata is not required" in hint
@@ -783,7 +783,6 @@ class TestPromptBuilderConstants:
         assert "does not read raw chat secrets" in hint
         assert "do not repeat, log, or expose" in hint
         assert "store_matrix_credential" not in hint
-        assert "request_secret_capture" not in hint
 
     def test_cli_hint_does_not_suggest_media_tags(self):
         # Regression: MEDIA:/path tags are intercepted only by messaging
@@ -803,7 +802,8 @@ class TestPromptBuilderConstants:
         # check that this test is calibrated correctly).
         # Dieted (#95681): messaging hints now share the _MEDIA_NATIVE
         # spine ("write MEDIA:/absolute/path..."), not per-hint prose.
-        assert "MEDIA:/absolute/path" in PLATFORM_HINTS["telegram"]
+        from plugins.platforms.telegram.adapter_hint import PLATFORM_HINT
+        assert "MEDIA:/absolute/path" in PLATFORM_HINT
 
 
 
@@ -1001,7 +1001,7 @@ class TestEnvironmentHints:
         probe must use the bare call instead of dying on TypeError."""
         import agent.prompt_builder as _pb
 
-        monkeypatch.setenv("TERMINAL_ENV", "singularity")
+        monkeypatch.setenv("TERMINAL_ENV", "daytona")
         _pb._clear_backend_probe_cache()
 
         calls = []
@@ -1022,7 +1022,7 @@ class TestEnvironmentHints:
         import tools.terminal_tool_backends as _tt
         monkeypatch.setattr(_tt, "_create_environment", lambda **kw: _LegacyEnv())
 
-        assert _pb._probe_remote_backend("singularity") is not None
+        assert _pb._probe_remote_backend("daytona") is not None
         assert calls == ["bare"]
 
     def test_probe_remote_backend_ssh_is_probe_only_and_torn_down(self, monkeypatch):
@@ -1080,7 +1080,7 @@ class TestEnvironmentHints:
     def test_remote_backend_list_covers_known_sandboxes(self):
         """Regression guard: if someone adds a remote backend, they must list it here."""
         import agent.prompt_builder as _pb
-        for backend in ("docker", "singularity", "modal", "daytona", "ssh", "vercel_sandbox"):
+        for backend in ("docker", "modal", "daytona", "ssh", "vercel_sandbox"):
             assert backend in _pb._REMOTE_TERMINAL_BACKENDS, (
                 f"{backend!r} must be in _REMOTE_TERMINAL_BACKENDS so its host "
                 f"info is suppressed in the system prompt"

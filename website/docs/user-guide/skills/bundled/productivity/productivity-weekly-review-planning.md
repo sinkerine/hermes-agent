@@ -21,7 +21,7 @@ Weekly reset: commitments, stalled work, next-week plan.
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `Weekly-Review`, `Planning`, `Tasks`, `Calendar`, `Productivity` |
-| Related skills | [`obsidian`](../../bundled/note-taking/note-taking-obsidian.md), [`notion`](../../bundled/productivity/productivity-notion.md), [`airtable`](../../bundled/productivity/productivity-airtable.md), [`google-workspace`](../../bundled/productivity/productivity-google-workspace.md), [`email-inbox-triage`](../../bundled/email/email-email-inbox-triage.md) |
+| Related skills | [`obsidian`](../../bundled/note-taking/note-taking-obsidian.md), [`notion`](../../optional/productivity/productivity-notion.md), [`airtable`](../../optional/productivity/productivity-airtable.md), [`google-workspace`](../../bundled/productivity/productivity-google-workspace.md), [`email-inbox-triage`](../../bundled/email/email-email-inbox-triage.md) |
 
 ## Reference: full SKILL.md
 
@@ -95,5 +95,5 @@ Update tasks/projects, create calendar holds, archive processed items, and draft
 
 - [ ] Both the completed week and the planning horizon were covered, or gaps are stated.
 - [ ] Every stalled/waiting flag traces to a specific record, event, or thread.
-- [ ] No task, event, or note was mutated without approval; approved writes were read back.
+- [ ] Every task, event, or note change was covered by the user’s request or standing authorization and read back.
 - [ ] The plan names what was deferred, not just what was chosen.

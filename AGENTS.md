@@ -5,7 +5,7 @@ applies everywhere, then a routing table. Each area's `AGENTS.md` loads automati
 in that directory; read it before editing there. `python scripts/check` caps this file at 12k chars
 and every root-to-area chain at 30k, so it loads whole on 128k+ models: long form goes in the guide.
 
-**Never give up on the right solution.**
+**Persist toward the solution.**
 
 ## What Hermes Is
 
@@ -100,10 +100,9 @@ all profile-aware via `get_hermes_home()`.
 
 ### Facade + siblings layout
 
-Every former god file is a **facade** (public entry points + the names other packages import) plus
-**siblings** `<stem>_<topic>.py`, each owning one topic (`hermes_state.py`, `gateway/run.py`,
-`tools/mcp_tool.py`, `hermes_cli/kanban.py`, `hermes_cli/web_server.py`, `cli.py` →
-`hermes_cli/cli_*_mixin.py`, `run_agent.py` → `agent/turn_*.py`).
+Large modules use a **facade** for public entry points and imports, plus **siblings**
+`<stem>_<topic>.py` for behavior: `cli.py` → `hermes_cli/cli_*_mixin.py`,
+`run_agent.py` → `agent/turn_*.py`.
 
 - **Find code by topic:** `grep -rn "def name" <dir>/<stem>_*.py`, not by reading the facade.
 - **Siblings late-import the facade** inside functions; never a module-level cycle.

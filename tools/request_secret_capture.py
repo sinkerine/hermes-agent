@@ -25,13 +25,13 @@ def request_secret_capture(env_var: str, prompt: str = "", **kwargs: Any) -> str
         try:
             from tools.skills_tool import get_secret_capture_callback
             callback = get_secret_capture_callback()
-        except Exception:
+        except Exception:  # health: allow BLE001 -- callback exceptions may contain raw secrets; return metadata only
             callback = None
     if callback is None:
         return json.dumps({"success": False, "error_code": "capture_unavailable"})
     try:
         result = callback(name, label, {"requested_by": "request_secret_capture"})
-    except Exception:
+    except Exception:  # health: allow BLE001 -- callback exceptions may contain raw secrets; return metadata only
         return json.dumps({"success": False, "error_code": "capture_failed"})
     if not isinstance(result, dict):
         return json.dumps({"success": False, "error_code": "capture_failed"})

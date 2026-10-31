@@ -64,14 +64,6 @@ class TestResolveToolset:
         assert "terminal" in tools
         assert "store_matrix_credential" not in tools
 
-<<<<<<< HEAD
-=======
-    def test_matrix_has_normal_file_tools_without_special_storage(self):
-        tools = resolve_toolset("hermes-matrix")
-        assert "write_file" in tools
-        assert "terminal" in tools
-        assert "store_matrix_credential" not in tools
-
     def test_leaf_toolset(self):
         tools = resolve_toolset("web")
         assert set(tools) == {"web_search", "web_extract"}
@@ -81,7 +73,6 @@ class TestResolveToolset:
         assert "terminal" in tools
         assert "web_search" in tools
         assert "web_extract" in tools
->>>>>>> 021a921b1f (remove Matrix credential storage tool and special capture guidance)
 
     def test_cycle_detection(self):
         # Create a cycle: A includes B, B includes A

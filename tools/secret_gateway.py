@@ -82,7 +82,7 @@ def register(
             if not notify(entry):
                 cancel(entry.capture_id, "prompt_delivery_failed")
                 return None
-        except Exception:
+        except Exception:  # health: allow BLE001 -- callback exceptions may contain raw secrets; return metadata only
             cancel(entry.capture_id, "prompt_delivery_failed")
             return None
     return entry
@@ -105,7 +105,7 @@ def resolve_with_value(capture_id: str, value: str, *, redacted: bool = False) -
         entry.state = "consuming"
     try:
         result = entry.handler(value, redacted)
-    except Exception:
+    except Exception:  # health: allow BLE001 -- callback exceptions may contain raw secrets; return metadata only
         result = SecretCaptureResult(False, entry.env_var, error_code="persistence_failed")
     with _lock:
         entry.result = result

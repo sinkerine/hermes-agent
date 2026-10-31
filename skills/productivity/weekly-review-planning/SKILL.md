@@ -77,5 +77,5 @@ Update tasks/projects, create calendar holds, archive processed items, and draft
 
 - [ ] Both the completed week and the planning horizon were covered, or gaps are stated.
 - [ ] Every stalled/waiting flag traces to a specific record, event, or thread.
-- [ ] No task, event, or note was mutated without approval; approved writes were read back.
+- [ ] Every task, event, or note change was covered by the user’s request or standing authorization and read back.
 - [ ] The plan names what was deferred, not just what was chosen.

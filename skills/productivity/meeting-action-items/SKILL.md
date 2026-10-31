@@ -83,5 +83,5 @@ Create/update only approved records, attaching meeting provenance. Read back ass
 - [ ] Every decision and action traces to a quote, timestamp, or note reference.
 - [ ] No owner or due date was invented; unresolved values are visible.
 - [ ] Existing records were searched before any create; creates vs updates distinguished.
-- [ ] No ticket, task, or message was published without explicit approval.
+- [ ] Every published ticket, task, or message was covered by the user’s request or standing authorization.
 - [ ] Every approved write was read back from the provider.

@@ -39,7 +39,7 @@ def clear_capture():
 @pytest.mark.anyio
 async def test_pending_value_consumed_before_message_event(matrix_adapter):
     seen = []
-    entry = secret_gateway.register(
+    secret_gateway.register(
         env_var="FIXTURE_CAPTURE_KEY", prompt="Enter fixture key", skill_name="fixture",
         destination_home=str(get_hermes_home()),
         handler=lambda value, redacted: (
@@ -74,7 +74,7 @@ async def test_without_pending_capture_keeps_room_authorization(matrix_adapter, 
 @pytest.mark.anyio
 async def test_pending_capture_precedes_room_and_mention_authorization(matrix_adapter, monkeypatch):
     seen = []
-    entry = secret_gateway.register(
+    secret_gateway.register(
         env_var="FIXTURE_CAPTURE_KEY", prompt="Enter fixture key", skill_name="fixture",
         destination_home=str(get_hermes_home()),
         handler=lambda value, redacted: (
@@ -97,7 +97,7 @@ async def test_pending_capture_precedes_room_and_mention_authorization(matrix_ad
 @pytest.mark.anyio
 async def test_pending_capture_uses_same_path_for_decrypted_encrypted_event(matrix_adapter):
     seen = []
-    entry = secret_gateway.register(
+    secret_gateway.register(
         env_var="FIXTURE_CAPTURE_KEY", prompt="Enter fixture key", skill_name="fixture",
         destination_home=str(get_hermes_home()),
         handler=lambda value, redacted: (

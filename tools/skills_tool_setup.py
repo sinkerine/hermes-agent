@@ -13,7 +13,7 @@ from utils import env_var_enabled
 logger = logging.getLogger("tools.skills_tool")
 
 _ENV_VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_REMOTE_ENV_BACKENDS = frozenset({"docker", "singularity", "modal", "ssh", "daytona", "vercel_sandbox"})
+_REMOTE_ENV_BACKENDS = frozenset({"docker", "modal", "ssh", "daytona", "vercel_sandbox"})
 
 
 class SkillReadinessStatus(str, Enum):
@@ -81,7 +81,7 @@ def _capture_result(missing_names, setup_skipped=False, gateway_setup_hint=None,
 
 
 def _capture_required_environment_variables(
-    skill_name: str, missing_entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    skill_name: str, missing_entries: list[dict[str, Any]]) -> dict[str, Any]:
     """Invoke turn-local or registered capture callbacks; explain unsupported gateways."""
     if not missing_entries:
         return _capture_result([])
@@ -99,7 +99,7 @@ def _capture_required_environment_variables(
     if callback is None:
         return _capture_result(missing_names, capture_supported=False, capture_outcome="unavailable")
 
-    remaining: List[str] = []
+    remaining: list[str] = []
     attempted = False
     for entry in missing_entries:
         metadata = {"skill_name": skill_name,
@@ -127,7 +127,7 @@ def _is_gateway_surface() -> bool:
     return bool(get_session_env("HERMES_SESSION_PLATFORM"))
 
 
-def _is_env_var_persisted(var_name: str, env_snapshot: Dict[str, str]) -> bool:
+def _is_env_var_persisted(var_name: str, env_snapshot: dict[str, str]) -> bool:
     """Check profile snapshot first, then the active scoped secret source."""
     if var_name in env_snapshot:
         return bool(env_snapshot[var_name])

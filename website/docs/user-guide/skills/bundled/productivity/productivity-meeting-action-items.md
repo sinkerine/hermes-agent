@@ -21,7 +21,7 @@ Turn meeting notes into cited decisions, owners, tickets.
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `Meetings`, `Action-Items`, `Follow-Up`, `Productivity` |
-| Related skills | [`teams-meeting-pipeline`](../../bundled/productivity/productivity-teams-meeting-pipeline.md), [`google-workspace`](../../bundled/productivity/productivity-google-workspace.md), [`notion`](../../bundled/productivity/productivity-notion.md) |
+| Related skills | [`teams-meeting-pipeline`](../../bundled/productivity/productivity-teams-meeting-pipeline.md), [`google-workspace`](../../bundled/productivity/productivity-google-workspace.md), [`notion`](../../optional/productivity/productivity-notion.md) |
 
 ## Reference: full SKILL.md
 
@@ -101,5 +101,5 @@ Create/update only approved records, attaching meeting provenance. Read back ass
 - [ ] Every decision and action traces to a quote, timestamp, or note reference.
 - [ ] No owner or due date was invented; unresolved values are visible.
 - [ ] Existing records were searched before any create; creates vs updates distinguished.
-- [ ] No ticket, task, or message was published without explicit approval.
+- [ ] Every published ticket, task, or message was covered by the user’s request or standing authorization.
 - [ ] Every approved write was read back from the provider.

@@ -8,12 +8,12 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [Documents, OCR, Action-Items, Deadlines, Extraction]
-    related_skills: [pdf, pdf, docx, notion]
+    related_skills: [pdf, microsoft-office, notion]
 ---
 
 # Document to Action Items
 
-Turn documents into cited facts and proposed actions. Extraction is not legal advice, and low-confidence OCR or ambiguous language must remain visible. The `pdf` / `pdf` / `docx` skills own extraction mechanics; this skill owns what happens to the extracted content.
+Turn documents into cited facts and proposed actions. Extraction is not legal advice, and low-confidence OCR or ambiguous language must remain visible. The `pdf` and `microsoft-office` skills own extraction mechanics; this skill owns what happens to the extracted content.
 
 ## When to Use
 
@@ -59,7 +59,7 @@ For each actionable obligation create outcome, owner if explicit, due date if ex
 
 ### 6. Review before external writes
 
-Present structured facts, high-risk clauses, low-confidence fields, and proposed tasks for approval. Drafting is not creating: writing to any external tracker requires the user's explicit scope. Recommend professional review for legal, medical, tax, or safety-critical interpretation. Done when approved fields/actions are unambiguous.
+Present structured facts, high-risk clauses, low-confidence fields, and proposed tasks. Write to external trackers when the user’s request or standing authorization covers the scope; ask when targets or actions remain unresolved. Recommend professional review for legal, medical, tax, or safety-critical interpretation. Done when approved fields/actions are unambiguous.
 
 ### 7. Create and verify records
 
@@ -77,5 +77,5 @@ Use the user's approved destination — `notion`, a calendar, a spreadsheet via 
 
 - [ ] Every surfaced fact or action traces to a file + page/section citation.
 - [ ] Modality ("may"/"should"/"must") and OCR uncertainty preserved in the output.
-- [ ] No external write happened without explicit approval, and every approved write was read back.
+- [ ] Every external write was covered by the user’s request or standing authorization and read back.
 - [ ] The final response separates extracted facts, proposed tasks, assumptions, and blockers.
