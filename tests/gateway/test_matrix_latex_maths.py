@@ -23,3 +23,25 @@ def test_inline_and_display_math_survive_sanitizer_with_escaped_tex():
 def test_unpaired_dollars_and_sentinel_collisions_pass_through_unchanged():
     text = "Costs $5 or $10 today; HERMESTEXINLINE7HERMESTEXEND is not ours"
     assert _adapter()._markdown_to_html(text) == text
+
+
+def test_math_and_sanitization_without_optional_markdown(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "markdown", None)
+    content = _adapter()._build_text_message_content(
+        '**Wave:** $a<b$ <script>alert(1)</script> [unsafe](javascript:alert)')
+    html = content["formatted_body"]
+    assert "<strong>Wave:</strong>" in html
+    assert '<span data-mx-maths="a&lt;b">a&lt;b</span>' in html
+    assert "script" not in html
+    assert "alert" not in html
+    assert "unsafe" in html
+
+
+def test_standalone_send_without_optional_markdown_keeps_plain_body(monkeypatch):
+    import sys
+    from plugins.platforms.matrix.adapter import _standalone_payloads
+
+    monkeypatch.setitem(sys.modules, "markdown", None)
+    assert _standalone_payloads("Wave: $a<b$") == [{"msgtype": "m.text", "body": "Wave: $a<b$"}]

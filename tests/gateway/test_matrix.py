@@ -1699,8 +1699,8 @@ class TestMatrixMarkdownHtmlSecurity:
     """Tests for HTML injection prevention in _markdown_to_html_fallback."""
 
     def setup_method(self):
-        from plugins.platforms.matrix.adapter import MatrixAdapter
-        self.convert = MatrixAdapter._markdown_to_html_fallback
+        from plugins.platforms.matrix.adapter_html import _markdown_to_html_fallback
+        self.convert = _markdown_to_html_fallback
 
     def test_script_injection_in_header(self):
         result = self.convert("# <script>alert(1)</script>")
@@ -1734,8 +1734,8 @@ class TestMatrixMarkdownHtmlFormatting:
     """Tests for new formatting capabilities in _markdown_to_html_fallback."""
 
     def setup_method(self):
-        from plugins.platforms.matrix.adapter import MatrixAdapter
-        self.convert = MatrixAdapter._markdown_to_html_fallback
+        from plugins.platforms.matrix.adapter_html import _markdown_to_html_fallback
+        self.convert = _markdown_to_html_fallback
 
     def test_fenced_code_block(self):
         result = self.convert('```python\ndef hello():\n    pass\n```')
@@ -1765,13 +1765,13 @@ class TestMatrixMarkdownHtmlFormatting:
 
 class TestMatrixLinkSanitization:
     def test_safe_https_url(self):
-        from plugins.platforms.matrix.adapter import MatrixAdapter
-        assert MatrixAdapter._sanitize_link_url("https://example.com") == "https://example.com"
+        from plugins.platforms.matrix.adapter_html import _sanitize_link_url
+        assert _sanitize_link_url("https://example.com") == "https://example.com"
 
 
     def test_quotes_escaped(self):
-        from plugins.platforms.matrix.adapter import MatrixAdapter
-        result = MatrixAdapter._sanitize_link_url('http://x"y')
+        from plugins.platforms.matrix.adapter_html import _sanitize_link_url
+        result = _sanitize_link_url('http://x"y')
         assert '"' not in result
         assert "&quot;" in result
 
