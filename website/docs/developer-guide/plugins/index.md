@@ -56,6 +56,19 @@ Hermes already ships these for plugin authors:
 - **Make LLM calls:** use `ctx.llm`, which comes with host-owned credentials and a fail-closed trust gate. See [Plugin LLM Access](../plugin-llm-access.md).
 :::
 
+`ctx.deliver_to_conversation(fn, *, timeout_s=90.0)` lets an in-process plugin tool run an async
+callback on the gateway loop for its bound conversation. The callback receives a
+`ConversationTarget` (`platform`, `chat_id`, `adapter`, `metadata`, `session_key`) from
+`hermes_cli.plugin_messages`, resolved through the same live route, profile ownership check,
+delivery adapter and thread metadata as `post_message`. It returns the callback's dictionary,
+or an `ok=False` error for no conversation, an unavailable gateway/adapter, a local surface
+(`unsupported_surface`), a call from the gateway loop (`on_event_loop`), timeout or callback failure.
+Timeout cancels the task and prevents callback startup after a delayed lookup; callbacks must
+propagate cancellation, and a side effect already completed cannot be rolled back. This API is
+unavailable with plugin host isolation because live adapters cannot cross the process boundary.
+Toolsets are selected when the agent is built; configuration changes apply to the next session
+or `/new`, preserving the conversation's cached prompt.
+
 ## Portable Agent Plugins v1 packages
 
 Hermes can also install and load directory packages that target the Agent

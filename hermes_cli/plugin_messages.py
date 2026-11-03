@@ -11,7 +11,10 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import logging
-from typing import Any, Optional
+import math
+import time
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable, Optional
 
 logger = logging.getLogger("hermes_cli.plugins")
 
@@ -193,3 +196,84 @@ def post(ctx: Any, text: str) -> PluginMessage:
     if handle._target is None and not handle.pending:
         handle.result = result
     return handle
+
+
+@dataclass(frozen=True)
+class ConversationTarget:
+    """The calling conversation's live delivery adapter and routing metadata."""
+    platform: str
+    chat_id: str
+    adapter: Any
+    metadata: dict | None
+    session_key: str
+
+
+async def _deliver_for(ctx, fn, session_key, route, deadline):
+    from gateway import plugin_messages
+
+    runner, _loop = _gateway_loop()
+    if runner is None:
+        return _err("gateway_unavailable")
+    target, refusal = await asyncio.to_thread(
+        plugin_messages.resolve, runner, session_key=session_key, route=route,
+        plugin_home=ctx._manager.home_path, plugin_id=ctx.plugin_id)
+    if target is None:
+        return refusal or _err("no_conversation")
+    if target.platform == "local":
+        return _err("unsupported_surface", "a messaging conversation is required")
+    # A disk lookup may finish after cancellation; never start adapter work past the deadline.
+    if time.monotonic() >= deadline:
+        return _err("timeout")
+    try:
+        return await fn(ConversationTarget(target.platform, target.chat_id, target.adapter,
+                                           target.metadata, session_key))
+    except Exception:  # health: allow BLE001 -- callback boundary; traceback can contain private payload text
+        # Normalize here so callback TimeoutError cannot be mistaken for the bridge's wait deadline.
+        logger.warning("plugin conversation delivery failed")
+        return _err("delivery_failed")
+
+
+def deliver(ctx: Any, fn: Callable[[ConversationTarget], Awaitable[dict]], *, timeout_s: float = 90.0) -> dict:
+    """Run adapter work on the gateway loop; cancellation cannot roll back an already completed send."""
+    future = None
+    coro = None
+    try:
+        from gateway.session_context import bound_session_key
+        from gateway.plugin_messages import bound_route
+
+        session_key = bound_session_key()
+        if not session_key:
+            return _err("no_conversation", _NO_SESSION)
+        _runner, loop = _gateway_loop()
+        if loop is None:
+            return _err("gateway_unavailable")
+        if _on_gateway_loop():
+            return _err("on_event_loop")
+        if not math.isfinite(timeout_s) or timeout_s <= 0:
+            return _err("timeout", "timeout_s must be finite and positive")
+        coro = _deliver_for(ctx, fn, session_key, bound_route(), time.monotonic() + timeout_s)
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result(timeout_s)
+    except concurrent.futures.TimeoutError:
+        if future is not None:
+            future.cancel()
+        return _err("timeout", "delivery cancelled; an already completed side effect cannot be undone")
+    except Exception:  # health: allow BLE001 -- callback boundary; traceback can contain private payload text
+        logger.warning("plugin conversation delivery failed")
+        return _err("delivery_failed")
+    finally:
+        if coro is not None and future is None:
+            coro.close()
+
+
+def gateway_injection_allowed(ctx: Any) -> bool:
+    """Read injection consent in the plugin's own profile, never the calling thread's ambient home."""
+    from hermes_cli import plugins
+
+    try:
+        with plugins._plugin_home_scope(ctx._manager.home_path):
+            cfg = plugins.load_config_readonly() or {}
+    except Exception:
+        logger.debug("plugin injection consent lookup failed", exc_info=True)
+        return False
+    return (plugins._plugin_settings_entry(cfg, ctx.plugin_id) or {}).get("allow_gateway_injection") is True

@@ -24,8 +24,10 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from functools import cached_property, wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Mapping, Optional, Set, Tuple, Union
 
+if TYPE_CHECKING:
+    from hermes_cli.plugin_messages import ConversationTarget
 from hermes_constants import get_hermes_home, get_process_hermes_home, hermes_home_key
 from registration_lifecycle import replacement_coordinator
 from utils import env_var_enabled
@@ -604,6 +606,10 @@ class PluginContext(PluginCapabilityCtxMixin):
         from hermes_cli.plugin_session import context_surface
         return context_surface(self._manager)
 
+    def deliver_to_conversation(self, fn: Callable[[ConversationTarget], Awaitable[dict]], *, timeout_s: float = 90.0) -> dict:
+        from hermes_cli.plugin_messages import deliver
+        return deliver(self, fn, timeout_s=timeout_s)
+
     def post_message(self, text: str) -> Any:
         """Post *text* into the session bound to this call; the handle's ``edit(text)`` updates it in
         place. Never raises (``ok=False`` + ``error`` with no conversation): ``plugin_messages.py``."""
@@ -622,14 +628,8 @@ class PluginContext(PluginCapabilityCtxMixin):
         return ask_choice(question, choices)
 
     def _gateway_injection_allowed(self) -> bool:
-        """Return whether this plugin may trigger gateway session turns (read from the plugin's
-        own profile config, never the calling thread's ambient home)."""
-        try:
-            with _plugin_home_scope(self._manager.home_path):
-                cfg = load_config_readonly() or {}
-        except Exception:
-            return False
-        return (_plugin_settings_entry(cfg, self.plugin_id) or {}).get("allow_gateway_injection") is True
+        from hermes_cli.plugin_messages import gateway_injection_allowed
+        return gateway_injection_allowed(self)
 
     @_serialized_replacement
     def register_cli_command(

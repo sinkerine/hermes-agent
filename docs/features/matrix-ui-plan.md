@@ -51,7 +51,9 @@ one model turn in the same conversation.
 7. **Surface gating and caching.** `present_ui` is in the plugin toolset `interactive_ui`. It is off by default and
    can only be enabled for the `matrix` platform. The toolset is fixed when the agent is built, so enabling it applies
    from the next session or `/new`. It is never added mid-conversation. Sessions on other platforms, CLI/TUI/Desktop
-   and delegated subagents never see the tool. If one calls it anyway (for example through `all`), it gets a clear
+   and delegated subagents never see the tool through ordinary named platform configuration. The explicit `all`
+   override retains its existing passthrough semantics and may expose its schema. If one calls it anyway through
+   that override, it gets a clear
    "Matrix conversations only" error and nothing is sent.
 8. **Action authentication before side effects.** Every inbound `net.15cm.matrix.interactive_ui.action` reply passes
    the existing guards first: not self, not a bridge or system sender, not an ignored pattern, an allowed room, a
@@ -457,7 +459,8 @@ Unit test environment for every task (build once, see §4): `scripts/run_tests.s
 - Goal: let an in-process plugin tool run adapter work for its own conversation, and make `interactive_ui` an
   off-by-default, Matrix-only plugin toolset.
 - Owns:
-  - `hermes_cli/plugins.py` (method only) and `hermes_cli/plugin_messages.py`
+  - `hermes_cli/plugins.py` (new method plus minimal extraction of existing messaging implementation to keep the
+    facade at or below its base length; retain public method signatures) and `hermes_cli/plugin_messages.py`
   - `plugin_isolation.HOST_UNSUPPORTED_CTX_METHODS`
   - `hermes_cli/toolset_scope.py` and `hermes_cli/tools_config.py`
   - `website/docs/developer-guide/plugins/index.md` (`deliver_to_conversation` paragraph)
@@ -716,3 +719,12 @@ is ever involved.
   are refused with a tool error. This is an explicit compatibility limitation in both parser modes, not a claim of
   exact URL parity; canonical fixture and first-error conformance remain required. T1 must preserve probe details
   and representative regression cases for review.
+- Ruling: permit minimal extraction of existing `PluginContext` messaging behavior into its messaging sibling
+  while preserving public methods — T2's new delegate exceeds the existing facade size ratchet; removing unrelated
+  blank lines only to satisfy the count would obscure the structural issue — cost if wrong: a small additional
+  refactor requiring existing messaging regression checks. Prefer a concise delegate if that alone fits.
+- Ruling: preserve the explicit `all` toolset override as the exception already allowed by acceptance criterion 7 —
+  changing global override semantics is outside T2 — cost if wrong: a non-Matrix model using `all` may see the
+  schema but must receive a no-send refusal from T6. Ordinary named platform enablement must exclude restricted
+  schemas; T6 must test actual dispatch refusal. Tests and review reports must not describe `all` passthrough as
+  runtime schema exclusion. Fix the separately identified callback `TimeoutError` misclassification within T2.
