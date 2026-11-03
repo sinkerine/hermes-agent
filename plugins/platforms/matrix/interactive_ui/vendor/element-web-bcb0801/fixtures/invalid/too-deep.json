@@ -1,0 +1,88 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "n0",
+    "nodes": [
+        {
+            "id": "n0",
+            "type": "stack",
+            "children": ["n1"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n1",
+            "type": "stack",
+            "children": ["n2"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n2",
+            "type": "stack",
+            "children": ["n3"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n3",
+            "type": "stack",
+            "children": ["n4"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n4",
+            "type": "stack",
+            "children": ["n5"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n5",
+            "type": "stack",
+            "children": ["n6"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n6",
+            "type": "stack",
+            "children": ["n7"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n7",
+            "type": "stack",
+            "children": ["n8"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n8",
+            "type": "stack",
+            "children": ["n9"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n9",
+            "type": "stack",
+            "children": ["n10"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n10",
+            "type": "stack",
+            "children": ["n11"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n11",
+            "type": "stack",
+            "children": ["n12"],
+            "direction": "vertical"
+        },
+        {
+            "id": "n12",
+            "type": "stack",
+            "children": [],
+            "direction": "vertical"
+        }
+    ]
+}

@@ -1,0 +1,35 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["list", "link"],
+            "direction": "vertical"
+        },
+        {
+            "id": "list",
+            "type": "list",
+            "items": [
+                {
+                    "text": "Day 1: Coast"
+                },
+                {
+                    "text": "Day 2: Hills"
+                }
+            ],
+            "ordered": true
+        },
+        {
+            "id": "link",
+            "type": "link",
+            "label": "Trail information",
+            "url": "https://example.org/trails"
+        }
+    ]
+}

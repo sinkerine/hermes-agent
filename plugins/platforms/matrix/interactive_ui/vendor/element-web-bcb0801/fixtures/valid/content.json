@@ -1,0 +1,91 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": [
+                "heading",
+                "text",
+                "rich_text",
+                "badge",
+                "key_value",
+                "list",
+                "image",
+                "link",
+                "future_widget"
+            ],
+            "direction": "vertical"
+        },
+        {
+            "id": "heading",
+            "type": "heading",
+            "text": "Content",
+            "level": 1
+        },
+        {
+            "id": "text",
+            "type": "text",
+            "text": " First line\nSecond line ",
+            "tone": "muted",
+            "size": "caption"
+        },
+        {
+            "id": "rich_text",
+            "type": "rich_text",
+            "text": "Rich text",
+            "html": "<b>Rich text</b>"
+        },
+        {
+            "id": "badge",
+            "type": "badge",
+            "text": "Ready",
+            "tone": "success"
+        },
+        {
+            "id": "key_value",
+            "type": "key_value",
+            "items": [
+                {
+                    "label": "Author",
+                    "value": "Example"
+                }
+            ]
+        },
+        {
+            "id": "list",
+            "type": "list",
+            "items": [
+                {
+                    "text": "One",
+                    "secondary": "Details"
+                }
+            ],
+            "ordered": true
+        },
+        {
+            "id": "image",
+            "type": "image",
+            "alt": "Example image",
+            "mimetype": "image/png",
+            "url": "mxc://example.org/photo"
+        },
+        {
+            "id": "link",
+            "type": "link",
+            "label": "Source",
+            "url": "https://example.org/source",
+            "kind": "source"
+        },
+        {
+            "id": "future_widget",
+            "type": "future_widget",
+            "fallback": "Future component"
+        }
+    ]
+}

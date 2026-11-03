@@ -1,0 +1,217 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": [
+                "im0",
+                "im1",
+                "im2",
+                "im3",
+                "im4",
+                "im5",
+                "im6",
+                "im7",
+                "im8",
+                "im9",
+                "im10",
+                "im11",
+                "im12",
+                "im13",
+                "im14",
+                "im15",
+                "im16",
+                "im17",
+                "im18",
+                "im19",
+                "im20",
+                "im21",
+                "im22",
+                "im23",
+                "im24"
+            ],
+            "direction": "vertical"
+        },
+        {
+            "id": "im0",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im1",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im2",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im3",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im4",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im5",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im6",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im7",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im8",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im9",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im10",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im11",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im12",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im13",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im14",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im15",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im16",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im17",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im18",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im19",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im20",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im21",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im22",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im23",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        },
+        {
+            "id": "im24",
+            "type": "image",
+            "url": "mxc://example.org/photo",
+            "alt": "Image",
+            "mimetype": "image/png"
+        }
+    ]
+}

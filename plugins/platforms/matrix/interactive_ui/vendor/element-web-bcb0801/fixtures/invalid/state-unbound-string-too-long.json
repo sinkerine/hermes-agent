@@ -1,0 +1,22 @@
+{
+    "version": 1,
+    "ui_id": "unbound-string",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "root": "send",
+    "nodes": [
+        {
+            "id": "send",
+            "type": "button",
+            "label": "Send",
+            "action": {
+                "type": "submit",
+                "action_id": "send",
+                "include": ["text"]
+            }
+        }
+    ]
+}

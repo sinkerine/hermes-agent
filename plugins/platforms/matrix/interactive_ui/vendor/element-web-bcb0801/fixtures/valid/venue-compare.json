@@ -1,0 +1,54 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "stack",
+    "nodes": [
+        {
+            "id": "stack",
+            "type": "stack",
+            "children": ["venueA", "venueB"],
+            "direction": "horizontal"
+        },
+        {
+            "id": "venueA",
+            "type": "card",
+            "title": "Venue A",
+            "children": ["factsA"]
+        },
+        {
+            "id": "factsA",
+            "type": "key_value",
+            "items": [
+                {
+                    "label": "Capacity",
+                    "value": "80"
+                }
+            ]
+        },
+        {
+            "id": "venueB",
+            "type": "card",
+            "title": "Venue B",
+            "children": ["factsB", "unknown"]
+        },
+        {
+            "id": "factsB",
+            "type": "key_value",
+            "items": [
+                {
+                    "label": "Capacity",
+                    "value": "120"
+                }
+            ]
+        },
+        {
+            "id": "unknown",
+            "type": "badge",
+            "text": "Accessibility: Unknown",
+            "tone": "warning"
+        }
+    ]
+}

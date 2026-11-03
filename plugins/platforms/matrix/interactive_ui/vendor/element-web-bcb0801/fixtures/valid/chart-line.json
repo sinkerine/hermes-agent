@@ -1,0 +1,24 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "chart",
+    "nodes": [
+        {
+            "id": "chart",
+            "type": "chart",
+            "kind": "line",
+            "title": "Example data",
+            "unit": "kg",
+            "series": [
+                {
+                    "name": "Mass",
+                    "values": [2, 3]
+                }
+            ],
+            "categories": ["A", "B"]
+        }
+    ]
+}

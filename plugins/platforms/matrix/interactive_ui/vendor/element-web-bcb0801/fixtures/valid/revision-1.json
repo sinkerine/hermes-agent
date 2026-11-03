@@ -1,0 +1,37 @@
+{
+    "version": 1,
+    "ui_id": "revision-example",
+    "revision": 1,
+    "status": "active",
+    "state": {
+        "plan": "plus",
+        "enabled": false
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["select", "toggle"],
+            "direction": "vertical"
+        },
+        {
+            "id": "select",
+            "type": "select",
+            "label": "Plan",
+            "bind": "plan",
+            "options": [
+                {
+                    "value": "plus",
+                    "label": "Plus"
+                }
+            ]
+        },
+        {
+            "id": "toggle",
+            "type": "toggle",
+            "label": "Enabled",
+            "bind": "enabled"
+        }
+    ]
+}

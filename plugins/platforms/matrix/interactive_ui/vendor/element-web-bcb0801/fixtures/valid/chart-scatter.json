@@ -1,0 +1,33 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "chart",
+    "nodes": [
+        {
+            "id": "chart",
+            "type": "chart",
+            "kind": "scatter",
+            "title": "Example data",
+            "unit": "kg",
+            "series": [
+                {
+                    "name": "Mass",
+                    "points": [
+                        {
+                            "x": 1,
+                            "y": 2,
+                            "label": "A"
+                        },
+                        {
+                            "x": 2,
+                            "y": 3
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,4 @@
+{
+    "path": "nodes[0].rows[0].price",
+    "code": "type_mismatch"
+}

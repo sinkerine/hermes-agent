@@ -1,0 +1,65 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "tab": "one",
+        "open": true
+    },
+    "root": "stack",
+    "nodes": [
+        {
+            "id": "stack",
+            "type": "stack",
+            "children": ["card", "tabs", "collapsible", "divider"],
+            "direction": "horizontal",
+            "gap": "md"
+        },
+        {
+            "id": "card",
+            "type": "card",
+            "children": ["heading"],
+            "title": "Overview"
+        },
+        {
+            "id": "heading",
+            "type": "heading",
+            "text": "Layout",
+            "level": 2
+        },
+        {
+            "id": "tabs",
+            "type": "tabs",
+            "bind": "tab",
+            "tabs": [
+                {
+                    "value": "one",
+                    "label": "One",
+                    "child": "tabtext"
+                }
+            ]
+        },
+        {
+            "id": "tabtext",
+            "type": "text",
+            "text": "Tab content"
+        },
+        {
+            "id": "collapsible",
+            "type": "collapsible",
+            "label": "Details",
+            "bind": "open",
+            "children": ["detail"]
+        },
+        {
+            "id": "detail",
+            "type": "text",
+            "text": "More information"
+        },
+        {
+            "id": "divider",
+            "type": "divider"
+        }
+    ]
+}

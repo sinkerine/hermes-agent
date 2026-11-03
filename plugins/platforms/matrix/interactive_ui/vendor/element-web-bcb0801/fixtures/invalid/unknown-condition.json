@@ -1,0 +1,162 @@
+{
+    "version": 1,
+    "ui_id": "knowledge-map",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "branch": "cooking",
+        "focus": null
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["heading", "rich_text", "select", "cooking", "nutrition", "text", "button"],
+            "direction": "vertical"
+        },
+        {
+            "id": "heading",
+            "type": "heading",
+            "text": "Cooking knowledge map",
+            "level": 1
+        },
+        {
+            "id": "rich_text",
+            "type": "rich_text",
+            "text": "Choose a branch and a mechanism",
+            "html": "<p>Choose a branch and a mechanism</p>"
+        },
+        {
+            "id": "select",
+            "type": "select",
+            "label": "Knowledge branch",
+            "bind": "branch",
+            "options": [
+                {
+                    "value": "cooking",
+                    "label": "Cooking"
+                },
+                {
+                    "value": "nutrition",
+                    "label": "Nutrition"
+                }
+            ]
+        },
+        {
+            "id": "cooking",
+            "type": "graph",
+            "layers": [
+                {
+                    "label": "Ingredients"
+                },
+                {
+                    "label": "Mechanisms"
+                },
+                {
+                    "label": "Results"
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "sugar",
+                    "label": "Sugar",
+                    "layer": 0
+                },
+                {
+                    "id": "maillard",
+                    "label": "Maillard reaction",
+                    "layer": 1,
+                    "detail": "Heat creates flavour"
+                },
+                {
+                    "id": "flavour",
+                    "label": "Flavour",
+                    "layer": 2
+                }
+            ],
+            "edges": [
+                {
+                    "to": "maillard",
+                    "from": "sugar"
+                },
+                {
+                    "to": "flavour",
+                    "from": "maillard"
+                }
+            ],
+            "bind_selected": "focus",
+            "visible_when": {
+                "state": "absent",
+                "equals": "cooking"
+            }
+        },
+        {
+            "id": "nutrition",
+            "type": "graph",
+            "layers": [
+                {
+                    "label": "Ingredients"
+                },
+                {
+                    "label": "Mechanisms"
+                },
+                {
+                    "label": "Results"
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "sugar",
+                    "label": "Sugar",
+                    "layer": 0
+                },
+                {
+                    "id": "maillard",
+                    "label": "Maillard reaction",
+                    "layer": 1,
+                    "detail": "Heat creates flavour"
+                },
+                {
+                    "id": "flavour",
+                    "label": "Flavour",
+                    "layer": 2
+                }
+            ],
+            "edges": [
+                {
+                    "to": "maillard",
+                    "from": "sugar"
+                },
+                {
+                    "to": "flavour",
+                    "from": "maillard"
+                }
+            ],
+            "bind_selected": "focus",
+            "visible_when": {
+                "state": "branch",
+                "equals": "nutrition"
+            }
+        },
+        {
+            "id": "text",
+            "type": "text",
+            "text": "The selected mechanism creates flavour",
+            "visible_when": {
+                "state": "focus",
+                "equals": "maillard"
+            }
+        },
+        {
+            "id": "button",
+            "type": "button",
+            "label": "Explain this mechanism",
+            "action": {
+                "type": "submit",
+                "action_id": "explain_node",
+                "include": ["focus"]
+            }
+        }
+    ]
+}

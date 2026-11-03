@@ -1,0 +1,188 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["carousel"],
+            "direction": "vertical"
+        },
+        {
+            "id": "carousel",
+            "type": "carousel",
+            "label": "Results",
+            "items": [
+                {
+                    "id": "item1",
+                    "image": {
+                        "alt": "Product 1",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v1",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Product 1",
+                    "subtitle": "Details",
+                    "meta": ["£25", "4.5 stars"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    },
+                    "action": {
+                        "type": "open_url",
+                        "url": "https://example.org/item/1"
+                    }
+                },
+                {
+                    "id": "item2",
+                    "image": {
+                        "alt": "Product 2",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Product 2",
+                    "subtitle": "Details",
+                    "meta": ["£25", "4.5 stars"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    },
+                    "action": {
+                        "type": "open_url",
+                        "url": "https://example.org/item/2"
+                    }
+                },
+                {
+                    "id": "item3",
+                    "image": {
+                        "alt": "Product 3",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Product 3",
+                    "subtitle": "Details",
+                    "meta": ["£25", "4.5 stars"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    },
+                    "action": {
+                        "type": "open_url",
+                        "url": "https://example.org/item/3"
+                    }
+                },
+                {
+                    "id": "item4",
+                    "image": {
+                        "alt": "Product 4",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Product 4",
+                    "subtitle": "Details",
+                    "meta": ["£25", "4.5 stars"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    },
+                    "action": {
+                        "type": "open_url",
+                        "url": "https://example.org/item/4"
+                    }
+                },
+                {
+                    "id": "item5",
+                    "image": {
+                        "alt": "Product 5",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Product 5",
+                    "subtitle": "Details",
+                    "meta": ["£25", "4.5 stars"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    },
+                    "action": {
+                        "type": "open_url",
+                        "url": "https://example.org/item/5"
+                    }
+                }
+            ]
+        }
+    ]
+}

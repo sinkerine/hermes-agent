@@ -26,8 +26,8 @@ one model turn in the same conversation.
 
 1. **Conformance.** The Python parser (`parse_interactive_ui(raw, strict=False)`) accepts all 22 vendored valid
    fixtures and rejects each of the 53 invalid fixtures with exactly the `{path, code}` in its `*.expected.json`. In
-   producer mode (`strict=True`), all valid fixtures still pass and every invalid fixture still fails with the same
-   first error. A seeded mutation fuzz of the fixtures (≥ 2 000 cases) never raises.
+   producer mode (`strict=True`), valid fixtures pass except `content.json`, whose deliberate unknown node is
+   rejected at `nodes[9].type` with `bad_type`; every invalid fixture still fails with the same first error. A seeded mutation fuzz of the fixtures (≥ 2 000 cases) never raises.
 2. **Producer limits.** The canonical payload (UTF-8, compact JSON) is at most 40 000 bytes. The whole UI event
    content is at most 44 000 bytes, which leaves room for a later status edit under the 45 000-byte Matrix cap
    (`_MAX_CONTENT_BYTES`). Every revision edit is at most 45 000 bytes. If a payload is over a limit, nothing is
@@ -188,7 +188,9 @@ def accepts_state_value(payload: Mapping[str, Any], key: str, value: object) -> 
 `strict=True` (producer) uses the 40 000-byte cap on canonical bytes. It adds these rules after all client rules,
 so the first client error is unchanged: reject unreachable nodes (`nodes[i]`, `unknown_ref`), reject unknown node
 types (`nodes[i].type`, `bad_type`), and reject the same `action_id` on two submit sources (`…action_id`,
-`duplicate_id`). All 22 valid fixtures already satisfy these rules (checked).
+`duplicate_id`). The client-valid `content.json` deliberately includes a reachable `future_widget` at `nodes[9]`;
+client mode degrades it to its fallback, while producer strict mode rejects it at `nodes[9].type` with `bad_type`.
+The earlier claim that all valid fixtures satisfied strict rules was incorrect; vendored fixtures remain unchanged.
 
 ```python
 # fallback.py / content.py
@@ -398,7 +400,8 @@ whitespace set is replicated (Python `strip` differs on `\x85`, `﻿` and others
 - `NaN`/`Infinity` are rejected.
 - Code-point lengths use Python `len`.
 - Schema regex patterns are checked for Python `re` compatibility.
-- WHATWG URL checks (`https`, a host, no userinfo).
+- URL checks (`https`, a host, no userinfo), using public `idna` UTS46 APIs. This conservatively rejects some
+  rare Unicode hostnames accepted by Node's WHATWG URL parser; general URL parity is not exact (see review log).
 - Byte counting of the client copy uses JS number formatting.
 
 The Web inconsistency (parsed strings are trimmed before the length check, while saved or submitted strings use raw
@@ -435,7 +438,8 @@ Unit test environment for every task (build once, see §4): `scripts/run_tests.s
 - Owns:
   - `plugins/platforms/matrix/interactive_ui/{__init__.py,protocol.py}`
   - `plugins/platforms/matrix/interactive_ui/vendor/element-web-bcb0801/{interactive-ui-v1.schema.json,fixtures/**,README.md}`
-  - the `pyproject.toml` package-data line
+  - the `pyproject.toml` package-data line and explicit bounded `idna` dependency in the Matrix extra; `uv.lock`
+    regenerated through `hermes pm lock`
   - `tests/plugins/platforms/matrix/interactive_ui/{__init__.py,test_protocol_conformance.py,test_protocol_strict.py,test_protocol_fuzz.py}`
 - Produces: the §2.3 protocol interfaces and constants.
 - Consumes: nothing new.
@@ -697,3 +701,18 @@ is ever involved.
   `tests/AGENTS.md` plus the root routing row; local image uploads; `deliver_to_conversation`; a strict over-cap
   error.
 - 2026-11-03: the user approved the plan.
+- Ruling: preserve client acceptance and strict producer rejection of the deliberate unknown node in
+  `valid/content.json` — verified against the canonical fixture; the all-valid-fixtures-pass-strict claim was
+  incorrect — cost if wrong: producer rejects a future node until its supported catalog is extended. The client
+  protocol and vendored fixture remain unchanged.
+- Ruling: use the public `idna` UTS46 APIs and declare the dependency directly in the Matrix extra, with a tested
+  floor and `<4` upper bound — Python's built-in IDNA2003 differs from browser URL validation, and a direct
+  runtime import should not rely on transitive dependencies — cost if wrong: an extra declared dependency and
+  lock refresh. Add regression cases for the observed Unicode hostname differences; do not claim full WHATWG
+  parity without evidence.
+- Ruling: retain conservative rejection for rare Unicode hostname discrepancies after UTS46 mapping — a seeded
+  1 500-hostname probe found eight differences involving bidi checks or Unicode-version tables, and expanding to
+  a dedicated WHATWG engine is disproportionate to this feature — cost if wrong: some client-valid Unicode URLs
+  are refused with a tool error. This is an explicit compatibility limitation in both parser modes, not a claim of
+  exact URL parity; canonical fixture and first-error conformance remain required. T1 must preserve probe details
+  and representative regression cases for review.

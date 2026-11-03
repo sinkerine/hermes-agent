@@ -1,0 +1,55 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "name": "",
+        "quantity": 1,
+        "plan": "basic"
+    },
+    "root": "form",
+    "nodes": [
+        {
+            "id": "form",
+            "type": "form",
+            "children": ["text_input", "number_input", "select"],
+            "submit_label": "Submit",
+            "action_id": "answer"
+        },
+        {
+            "id": "text_input",
+            "type": "text_input",
+            "label": "Name",
+            "bind": "name",
+            "max_length": 100,
+            "required": true
+        },
+        {
+            "id": "number_input",
+            "type": "number_input",
+            "label": "Quantity",
+            "bind": "quantity",
+            "min": 1,
+            "max": 10,
+            "step": 1,
+            "display": "slider"
+        },
+        {
+            "id": "select",
+            "type": "select",
+            "label": "Plan",
+            "bind": "plan",
+            "options": [
+                {
+                    "value": "basic",
+                    "label": "Basic"
+                },
+                {
+                    "value": "plus",
+                    "label": "Plus"
+                }
+            ]
+        }
+    ]
+}

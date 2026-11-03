@@ -1,0 +1,22 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "chart",
+    "nodes": [
+        {
+            "id": "chart",
+            "type": "chart",
+            "kind": "bar",
+            "categories": ["A"],
+            "series": [
+                {
+                    "name": "Mismatch",
+                    "values": [1, 2]
+                }
+            ]
+        }
+    ]
+}

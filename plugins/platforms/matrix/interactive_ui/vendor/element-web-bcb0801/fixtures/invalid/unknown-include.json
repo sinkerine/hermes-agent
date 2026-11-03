@@ -1,0 +1,127 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "plan": "basic",
+        "features": [],
+        "enabled": false,
+        "name": "",
+        "quantity": 1
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": [
+                "select",
+                "choice",
+                "toggle",
+                "text_input",
+                "number_input",
+                "set",
+                "toggleButton",
+                "submit",
+                "linkButton"
+            ],
+            "direction": "vertical"
+        },
+        {
+            "id": "select",
+            "type": "select",
+            "label": "Plan",
+            "bind": "plan",
+            "options": [
+                {
+                    "value": "basic",
+                    "label": "Basic"
+                },
+                {
+                    "value": "plus",
+                    "label": "Plus"
+                }
+            ]
+        },
+        {
+            "id": "choice",
+            "type": "choice",
+            "label": "Features",
+            "bind": "features",
+            "multiple": true,
+            "options": [
+                {
+                    "value": "a",
+                    "label": "Feature A"
+                },
+                {
+                    "value": "b",
+                    "label": "Feature B"
+                }
+            ]
+        },
+        {
+            "id": "toggle",
+            "type": "toggle",
+            "label": "Enabled",
+            "bind": "enabled"
+        },
+        {
+            "id": "text_input",
+            "type": "text_input",
+            "label": "Name",
+            "bind": "name",
+            "max_length": 100,
+            "required": true
+        },
+        {
+            "id": "number_input",
+            "type": "number_input",
+            "label": "Quantity",
+            "bind": "quantity",
+            "min": 1,
+            "max": 10,
+            "step": 1,
+            "display": "slider"
+        },
+        {
+            "id": "set",
+            "type": "button",
+            "label": "Choose Plus",
+            "action": {
+                "type": "set_state",
+                "key": "plan",
+                "value": "plus"
+            }
+        },
+        {
+            "id": "toggleButton",
+            "type": "button",
+            "label": "Toggle",
+            "action": {
+                "type": "toggle_state",
+                "key": "enabled"
+            }
+        },
+        {
+            "id": "submit",
+            "type": "button",
+            "label": "Send",
+            "action": {
+                "type": "submit",
+                "action_id": "send",
+                "include": ["absent"]
+            }
+        },
+        {
+            "id": "linkButton",
+            "type": "button",
+            "label": "Website",
+            "action": {
+                "type": "open_url",
+                "url": "https://example.org/"
+            }
+        }
+    ]
+}

@@ -1,0 +1,202 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "done1": false,
+        "done2": false,
+        "done3": false
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["carousel", "list", "done1", "done2", "done3"],
+            "direction": "vertical"
+        },
+        {
+            "id": "carousel",
+            "type": "carousel",
+            "label": "Recipe steps",
+            "items": [
+                {
+                    "id": "item1",
+                    "image": {
+                        "alt": "Recipe step 1",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Prepare step 1",
+                    "subtitle": "Details",
+                    "meta": ["10 minutes"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    }
+                },
+                {
+                    "id": "item2",
+                    "image": {
+                        "alt": "Recipe step 2",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Prepare step 2",
+                    "subtitle": "Details",
+                    "meta": ["10 minutes"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    }
+                },
+                {
+                    "id": "item3",
+                    "image": {
+                        "alt": "Recipe step 3",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Prepare step 3",
+                    "subtitle": "Details",
+                    "meta": ["10 minutes"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    }
+                },
+                {
+                    "id": "item4",
+                    "image": {
+                        "alt": "Recipe step 4",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Prepare step 4",
+                    "subtitle": "Details",
+                    "meta": ["10 minutes"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    }
+                },
+                {
+                    "id": "item5",
+                    "image": {
+                        "alt": "Recipe step 5",
+                        "mimetype": "image/png",
+                        "file": {
+                            "url": "mxc://example.org/photo",
+                            "v": "v2",
+                            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                            "hashes": {
+                                "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            },
+                            "key": {
+                                "alg": "A256CTR",
+                                "kty": "oct",
+                                "ext": true,
+                                "key_ops": ["encrypt", "decrypt"],
+                                "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                            }
+                        }
+                    },
+                    "title": "Prepare step 5",
+                    "subtitle": "Details",
+                    "meta": ["10 minutes"],
+                    "badge": {
+                        "text": "Recommended",
+                        "tone": "info"
+                    }
+                }
+            ]
+        },
+        {
+            "id": "list",
+            "type": "list",
+            "items": [
+                {
+                    "text": "Prepare ingredients"
+                },
+                {
+                    "text": "Cook and serve"
+                }
+            ]
+        },
+        {
+            "id": "done1",
+            "type": "toggle",
+            "label": "Step 1 complete",
+            "bind": "done1"
+        },
+        {
+            "id": "done2",
+            "type": "toggle",
+            "label": "Step 2 complete",
+            "bind": "done2"
+        },
+        {
+            "id": "done3",
+            "type": "toggle",
+            "label": "Step 3 complete",
+            "bind": "done3"
+        }
+    ]
+}

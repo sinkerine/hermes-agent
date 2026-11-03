@@ -1,0 +1,16 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "link",
+    "nodes": [
+        {
+            "id": "link",
+            "type": "link",
+            "label": "Unsafe",
+            "url": "http://example.org/"
+        }
+    ]
+}

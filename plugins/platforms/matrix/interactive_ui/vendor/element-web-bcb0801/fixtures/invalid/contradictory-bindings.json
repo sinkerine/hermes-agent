@@ -1,0 +1,31 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "x": null
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["text_input", "number_input"],
+            "direction": "vertical"
+        },
+        {
+            "id": "text_input",
+            "type": "text_input",
+            "label": "Name",
+            "bind": "x",
+            "max_length": 20
+        },
+        {
+            "id": "number_input",
+            "type": "number_input",
+            "label": "Number",
+            "bind": "x"
+        }
+    ]
+}

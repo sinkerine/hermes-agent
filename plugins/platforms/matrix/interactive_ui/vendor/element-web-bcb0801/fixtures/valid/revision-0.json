@@ -1,0 +1,41 @@
+{
+    "version": 1,
+    "ui_id": "revision-example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "plan": "basic",
+        "enabled": false
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["select", "toggle"],
+            "direction": "vertical"
+        },
+        {
+            "id": "select",
+            "type": "select",
+            "label": "Plan",
+            "bind": "plan",
+            "options": [
+                {
+                    "value": "basic",
+                    "label": "Basic"
+                },
+                {
+                    "value": "plus",
+                    "label": "Plus"
+                }
+            ]
+        },
+        {
+            "id": "toggle",
+            "type": "toggle",
+            "label": "Enabled",
+            "bind": "enabled"
+        }
+    ]
+}

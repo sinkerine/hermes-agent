@@ -1,0 +1,15 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "absent",
+    "nodes": [
+        {
+            "id": "text",
+            "type": "text",
+            "text": "Hello"
+        }
+    ]
+}

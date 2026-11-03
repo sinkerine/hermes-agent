@@ -1,0 +1,32 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "image",
+    "nodes": [
+        {
+            "id": "image",
+            "type": "image",
+            "alt": "Example image",
+            "mimetype": "image/png",
+            "url": "mxc://example.org/photo",
+            "file": {
+                "url": "mxc://example.org/photo",
+                "v": "v2",
+                "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+                "hashes": {
+                    "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                },
+                "key": {
+                    "alg": "A256CTR",
+                    "kty": "oct",
+                    "ext": true,
+                    "key_ops": ["encrypt", "decrypt"],
+                    "k": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                }
+            }
+        }
+    ]
+}

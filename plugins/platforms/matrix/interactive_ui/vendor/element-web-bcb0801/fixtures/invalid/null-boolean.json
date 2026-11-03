@@ -1,0 +1,18 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "x": null
+    },
+    "root": "toggle",
+    "nodes": [
+        {
+            "id": "toggle",
+            "type": "toggle",
+            "label": "Toggle",
+            "bind": "x"
+        }
+    ]
+}

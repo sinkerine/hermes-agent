@@ -1,0 +1,58 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["table", "link", "dhl"],
+            "direction": "vertical"
+        },
+        {
+            "id": "table",
+            "type": "table",
+            "caption": "Carrier prices",
+            "columns": [
+                {
+                    "key": "carrier",
+                    "label": "Carrier"
+                },
+                {
+                    "key": "price",
+                    "label": "Price (£)",
+                    "kind": "number",
+                    "align": "end"
+                }
+            ],
+            "rows": [
+                {
+                    "carrier": "DHL",
+                    "price": 24
+                },
+                {
+                    "carrier": "Royal Mail",
+                    "price": 18.5
+                }
+            ],
+            "sortable": true
+        },
+        {
+            "id": "link",
+            "type": "link",
+            "label": "Royal Mail",
+            "url": "https://www.royalmail.com/",
+            "kind": "source"
+        },
+        {
+            "id": "dhl",
+            "type": "link",
+            "label": "DHL",
+            "url": "https://www.dhl.com/",
+            "kind": "source"
+        }
+    ]
+}

@@ -1,0 +1,101 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {},
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["graph", "image"],
+            "direction": "vertical"
+        },
+        {
+            "id": "graph",
+            "type": "graph",
+            "layers": [
+                {
+                    "label": "Step 1"
+                },
+                {
+                    "label": "Step 2"
+                },
+                {
+                    "label": "Step 3"
+                },
+                {
+                    "label": "Step 4"
+                },
+                {
+                    "label": "Step 5"
+                },
+                {
+                    "label": "Step 6"
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "step1",
+                    "label": "Step 1",
+                    "layer": 0
+                },
+                {
+                    "id": "step2",
+                    "label": "Step 2",
+                    "layer": 1
+                },
+                {
+                    "id": "step3",
+                    "label": "Step 3",
+                    "layer": 2
+                },
+                {
+                    "id": "step4",
+                    "label": "Step 4",
+                    "layer": 3
+                },
+                {
+                    "id": "step5",
+                    "label": "Step 5",
+                    "layer": 4
+                },
+                {
+                    "id": "step6",
+                    "label": "Step 6",
+                    "layer": 5
+                }
+            ],
+            "edges": [
+                {
+                    "from": "step1",
+                    "to": "step2"
+                },
+                {
+                    "from": "step2",
+                    "to": "step3"
+                },
+                {
+                    "from": "step3",
+                    "to": "step4"
+                },
+                {
+                    "from": "step4",
+                    "to": "step5"
+                },
+                {
+                    "from": "step5",
+                    "to": "step6"
+                }
+            ]
+        },
+        {
+            "id": "image",
+            "type": "image",
+            "alt": "Website diagram",
+            "mimetype": "image/png",
+            "url": "mxc://example.org/photo"
+        }
+    ]
+}

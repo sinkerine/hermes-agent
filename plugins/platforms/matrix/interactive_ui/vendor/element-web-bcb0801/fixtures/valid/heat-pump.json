@@ -1,0 +1,186 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "q1": null,
+        "q2": null,
+        "q3": null,
+        "q4": null,
+        "q5": null
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["image", "steps", "cost", "table", "form"],
+            "direction": "vertical"
+        },
+        {
+            "id": "image",
+            "type": "image",
+            "alt": "Heat pump photograph",
+            "mimetype": "image/png",
+            "url": "mxc://example.org/photo"
+        },
+        {
+            "id": "steps",
+            "type": "stack",
+            "direction": "horizontal",
+            "children": ["step1", "step2", "step3", "step4"]
+        },
+        {
+            "id": "step1",
+            "type": "card",
+            "title": "Step 1",
+            "children": []
+        },
+        {
+            "id": "step2",
+            "type": "card",
+            "title": "Step 2",
+            "children": []
+        },
+        {
+            "id": "step3",
+            "type": "card",
+            "title": "Step 3",
+            "children": []
+        },
+        {
+            "id": "step4",
+            "type": "card",
+            "title": "Step 4",
+            "children": []
+        },
+        {
+            "id": "cost",
+            "type": "card",
+            "title": "£8,000–£12,000+",
+            "children": ["grant", "source"]
+        },
+        {
+            "id": "grant",
+            "type": "badge",
+            "text": "£7,500 grant",
+            "tone": "success"
+        },
+        {
+            "id": "source",
+            "type": "link",
+            "label": "Grant guidance",
+            "url": "https://www.gov.uk/apply-boiler-upgrade-scheme",
+            "kind": "source"
+        },
+        {
+            "id": "table",
+            "type": "table",
+            "columns": [
+                {
+                    "key": "system",
+                    "label": "System"
+                },
+                {
+                    "key": "saving",
+                    "label": "Annual saving",
+                    "kind": "number"
+                }
+            ],
+            "rows": [
+                {
+                    "system": "Heat pump",
+                    "saving": 300
+                }
+            ]
+        },
+        {
+            "id": "form",
+            "type": "form",
+            "children": ["q1", "q2", "q3", "q4", "q5"],
+            "submit_label": "Assess suitability",
+            "action_id": "assess"
+        },
+        {
+            "id": "q1",
+            "type": "choice",
+            "label": "Insulated?",
+            "bind": "q1",
+            "options": [
+                {
+                    "value": "yes",
+                    "label": "Yes"
+                },
+                {
+                    "value": "no",
+                    "label": "No"
+                }
+            ]
+        },
+        {
+            "id": "q2",
+            "type": "choice",
+            "label": "Outdoor space?",
+            "bind": "q2",
+            "options": [
+                {
+                    "value": "yes",
+                    "label": "Yes"
+                },
+                {
+                    "value": "no",
+                    "label": "No"
+                }
+            ]
+        },
+        {
+            "id": "q3",
+            "type": "choice",
+            "label": "Own the property?",
+            "bind": "q3",
+            "options": [
+                {
+                    "value": "yes",
+                    "label": "Yes"
+                },
+                {
+                    "value": "no",
+                    "label": "No"
+                }
+            ]
+        },
+        {
+            "id": "q4",
+            "type": "choice",
+            "label": "Large radiators?",
+            "bind": "q4",
+            "options": [
+                {
+                    "value": "yes",
+                    "label": "Yes"
+                },
+                {
+                    "value": "no",
+                    "label": "No"
+                }
+            ]
+        },
+        {
+            "id": "q5",
+            "type": "choice",
+            "label": "Gas heating?",
+            "bind": "q5",
+            "options": [
+                {
+                    "value": "yes",
+                    "label": "Yes"
+                },
+                {
+                    "value": "no",
+                    "label": "No"
+                }
+            ]
+        }
+    ]
+}

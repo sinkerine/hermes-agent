@@ -1,0 +1,54 @@
+{
+    "version": 1,
+    "ui_id": "example",
+    "revision": 0,
+    "status": "active",
+    "state": {
+        "answer": null,
+        "step": 1
+    },
+    "root": "root",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "stack",
+            "children": ["choice", "text", "button"],
+            "direction": "vertical"
+        },
+        {
+            "id": "choice",
+            "type": "choice",
+            "label": "Which is a mammal?",
+            "bind": "answer",
+            "options": [
+                {
+                    "value": "whale",
+                    "label": "Whale"
+                },
+                {
+                    "value": "shark",
+                    "label": "Shark"
+                }
+            ]
+        },
+        {
+            "id": "text",
+            "type": "text",
+            "text": "Whales breathe air.",
+            "visible_when": {
+                "state": "answer",
+                "equals": "whale"
+            }
+        },
+        {
+            "id": "button",
+            "type": "button",
+            "label": "Next question",
+            "action": {
+                "type": "set_state",
+                "key": "step",
+                "value": 2
+            }
+        }
+    ]
+}
