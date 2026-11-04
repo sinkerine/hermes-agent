@@ -1,0 +1,29 @@
+# Nine cases, at most three requests each; shared live proxy additionally caps all requests at 30.
+- id: graph-zh
+  ui_useful: true
+  prompt: '[case:graph-zh] 用知识图谱解释《风味的法则》里成分—机制—结果的关系，并允许按知识分支切换。'
+- id: graph-en
+  ui_useful: true
+  prompt: '[case:graph-en] Explain ingredients, mechanisms and results as a layered cooking knowledge graph with branch selection and a repeatable Explain this mechanism button.'
+- id: table
+  ui_useful: true
+  prompt: '[case:table] Compare induction, gas and electric cooking in a sortable table, with cost and response time.'
+- id: chart
+  ui_useful: true
+  prompt: '[case:chart] Show a bar chart of weekly study hours: Mon 2, Tue 3, Wed 1, Thu 4, Fri 2.'
+- id: form
+  ui_useful: true
+  prompt: '[case:form] Plan my week: ask for my name, available hours and basic or plus plan in a short single-use form.'
+- id: carousel
+  ui_useful: true
+  prompt: '[case:carousel] Show three study destinations in an image carousel. Use only the three sandbox PNG absolute paths supplied in the system message as upload images.'
+- id: invalid
+  ui_useful: true
+  must_self_correct: true
+  prompt: '[case:invalid] For validation testing, first call present_ui with root missing_root and no corresponding node. Then correct the payload using the exact error and display an English knowledge map.'
+- id: fact
+  ui_useful: false
+  prompt: '[case:fact] What is the capital of France? One sentence.'
+- id: joke
+  ui_useful: false
+  prompt: '[case:joke] Tell me a short programming joke.'

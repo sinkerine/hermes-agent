@@ -59,6 +59,24 @@ scripts/run_tests.sh -v --tb=long                       # pytest flags pass thro
   Tests that `patch.object(Path, "home", ...)` must ALSO set `HERMES_HOME` — code reads the
   env var, not `Path.home()/.hermes`.
 
+## E2E sandboxes
+
+Use an isolated `HERMES_HOME` and `HERMES_RUNTIME_DIR` under the worktree's ignored
+`.hermes-sandbox/`, with disposable containers, random test accounts and local rooms/devices.
+Never read or mutate real `~/.hermes`, production accounts, rooms or personal devices. Keep
+credentials private (mode 0600), bind published services to loopback, and keep all assets,
+logs, caches and evidence inside that sandbox. Teardown must verify process/container
+ownership and retain evidence by default; deleting sandbox state requires explicit purge.
+
+The [Matrix interactive UI harness](../scripts/sandbox/matrix_interactive_ui/README.md)
+provides exact setup, asserted environment, lifecycle, deterministic/live model evaluation,
+encrypted DM/thread/replay/restart and browser screenshot procedures. Follow its preflight
+and approved execution boundaries before starting services or using credentials. Real
+Synapse + current-worktree gateway + pinned Element browser E2E is a separate gate: unit
+mocks, offline protocol checks and model evaluation cannot replace encrypted-room/browser
+receipts. Report unavailable builds, browser tools, native libraries or live providers as
+blockers and distinguish deterministic evidence from live model quality.
+
 ## Don't fake the host OS
 
 Behaviour that genuinely differs per host is tested ON that host with `@pytest.mark.platforms("linux")`

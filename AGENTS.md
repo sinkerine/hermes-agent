@@ -163,7 +163,7 @@ Large modules use a **facade** for public entry points and imports, plus **sibli
 | `apps/desktop/` | `apps/desktop/AGENTS.md`, `apps/desktop/src/AGENTS.md` | `serve` backend, slash palette, Bot Mode |
 | `skills/`, `optional-skills/`, `agent/curator*.py` | `skills/AGENTS.md` | frontmatter, authoring standards, curator |
 | `cron/`, kanban | `cron/AGENTS.md` | scheduler invariants, job fields, kanban dispatcher |
-| `tests/` | `tests/AGENTS.md` | runner, placement, OS markers, `wine2e`, banned test shapes |
+| `tests/` | `tests/AGENTS.md` § E2E sandboxes | runner, OS markers, `wine2e` |
 | `pm/`, `pyproject.toml` | `pm/AGENTS.md` | pinning policy, PM-owned environments, plugin quarantine |
 | `hermes_platform/` | `hermes_platform/AGENTS.md` | host facts, resolvers |
 
