@@ -409,15 +409,15 @@ async def _retire_profile_authority(authority, timeout=None):
     stop_authority_work(authority)
     from gateway.session_llm_oneshot import stop as stop_oneshots
     stop_oneshots(authority)
-    service = getattr(authority, 'hosted_room_service', None)
-    rooms = None if service is None else asyncio.ensure_future(asyncio.to_thread(service.stop, timeout=timeout))
+    from gateway.session_hosted_service import stop_profile_hosted_service
+    rooms = asyncio.create_task(stop_profile_hosted_service(authority, timeout))
     try:
         await join_authority_work(authority, timeout)
         workers_stopped = True
     except TimeoutError:
         logger.error('Profile %s workers did not stop; ownership retained', authority.profile_id)
         workers_stopped = False
-    rooms_stopped = rooms is None or await rooms is not False
+    rooms_stopped = await rooms is not False
     if not rooms_stopped:
         logger.error('Profile %s hosted rooms did not stop; ownership retained', authority.profile_id)
     if not (workers_stopped and rooms_stopped):
@@ -549,6 +549,13 @@ def _authorities(runner):
 
 
 async def recover_bot_mailbox(authority):
+    """Keep startup mailbox recovery inside this authority's ownership lifetime."""
+    from gateway.session_runtime_workers import track_mutation
+    if not getattr(authority, 'retiring', False):
+        await asyncio.shield(track_mutation(authority, _recover_bot_mailbox(authority)))
+
+
+async def _recover_bot_mailbox(authority):
     """Owner-startup Bot Chat recovery, skipped when this token cannot use the mailbox dir.
 
     An elevated install/update can leave ``runtime/bot_live_delivery`` owned by Administrators with
@@ -558,6 +565,8 @@ async def recover_bot_mailbox(authority):
     aborts startup."""
     from gateway.session_bot import recover_bot_deliveries
     from tools.bot_live_delivery import MailboxUnusable
+    if getattr(authority, 'retiring', False):
+        return
     try:
         await recover_bot_deliveries(authority)
     except MailboxUnusable as exc:
@@ -654,26 +663,43 @@ async def recover_gateway_native_sessions(runner):
     Stored envelopes are input, not authority to create a route or reconnect a
     transport. The authority preflights every queued sender before any claim.
     """
-    from gateway.session_authorities import owner_scope, serving_authorities
-    authorities = serving_authorities(runner)
-    if not authorities:
+    from gateway.session_authorities import serving_authorities
+    if not serving_authorities(runner):
         return {}
     from gateway.session_hosted_service import ensure_hosted_service
     await ensure_hosted_service(runner)
-    from gateway.session_local_recovery import recover_local_sessions
-    from gateway.platforms.webhook_ingress import recover_webhook_finalizations
     results = {}
-    for authority in authorities:
-        with owner_scope(authority):
-            recover_local_sessions(authority, schedule=True)
-            await recover_webhook_finalizations(authority)
-        results.update(await recover_profile_native_sessions(runner, authority))
+    from gateway.session_runtime_workers import track_mutation
+    for authority in serving_authorities(runner):
+        if not getattr(authority, 'retiring', False):
+            results.update(await asyncio.shield(track_mutation(authority, _recover_startup_sessions(runner, authority))))
     return results
 
 
-async def recover_profile_native_sessions(runner, authority):
-    """Bind one authority's queued native rows to the adapters connected now."""
+async def _recover_startup_sessions(runner, authority):
     from gateway.session_authorities import owner_scope
+    from gateway.session_local_recovery import recover_local_sessions
+    from gateway.platforms.webhook_ingress import recover_webhook_finalizations
+    if getattr(authority, 'retiring', False):
+        return {}
+    with owner_scope(authority):
+        recover_local_sessions(authority, schedule=True)
+        await recover_webhook_finalizations(authority)
+    return await recover_profile_native_sessions(runner, authority)
+
+
+async def recover_profile_native_sessions(runner, authority):
+    """Bind queued native rows while retaining ownership through every recovery await."""
+    from gateway.session_runtime_workers import track_mutation
+    if getattr(authority, 'retiring', False):
+        return {}
+    return await asyncio.shield(track_mutation(authority, _recover_native_sessions(runner, authority)))
+
+
+async def _recover_native_sessions(runner, authority):
+    from gateway.session_authorities import owner_scope
+    if getattr(authority, 'retiring', False):
+        return {}
     with owner_scope(authority):
         pending = {row['target_session_id'] for row in authority.db._read_all(
             "SELECT DISTINCT target_session_id FROM session_admissions WHERE status IN ('queued','unknown')")}

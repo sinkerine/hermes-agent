@@ -248,6 +248,26 @@ async def ensure_hosted_service(runner):
 
 
 async def _ensure_hosted_service(runner, authority):
+    """Preparation belongs to the authority even if its awaiting client disconnects.
+
+    Publish one service per authority; retirement joins this task before stopping the service,
+    including a constructor that has not returned its service yet.
+    """
+    if getattr(authority, 'retiring', False) or getattr(runner, '_draining', False):
+        return
+    service = getattr(authority, 'hosted_room_service', None)
+    if service is not None and getattr(service, '_transport_installed', False):
+        return
+    task = getattr(authority, '_hosted_service_task', None)
+    if task is None or task.done():
+        from gateway.session_runtime_workers import track_mutation
+        task = authority._hosted_service_task = track_mutation(authority, _prepare_hosted_service(runner, authority))
+    await asyncio.shield(task)
+
+
+async def _prepare_hosted_service(runner, authority):
+    if getattr(authority, 'retiring', False) or getattr(runner, '_draining', False):
+        return
     with owner_scope(authority):
         service = getattr(authority, 'hosted_room_service', None)
         if service is None:
@@ -278,12 +298,24 @@ def start_ready_hosted_services(runner):
     import_after_ready(serving_authorities(runner))
 
 
+async def stop_profile_hosted_service(authority, timeout):
+    """Join preparation without cancelling its disk worker, then stop the published service."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + max(0, timeout)
+    task = getattr(authority, '_hosted_service_task', None)
+    if task is not None and not task.done():
+        _, pending = await asyncio.wait({task}, timeout=max(0, deadline - loop.time()))
+        if pending:
+            return False
+    service = getattr(authority, 'hosted_room_service', None)
+    return (True if service is None else
+            await asyncio.to_thread(service.stop, timeout=max(0, deadline - loop.time())))
+
+
 async def stop_hosted_service(runner, timeout=5):
     loop = asyncio.get_running_loop()
     deadline, stopped = loop.time() + max(0, timeout), True
     for authority in all_authorities(runner):
-        service = getattr(authority, 'hosted_room_service', None)
-        if service is not None:
-            result = await asyncio.to_thread(service.stop, timeout=max(0, deadline - loop.time()))
-            stopped = result and stopped
+        result = await stop_profile_hosted_service(authority, timeout=max(0, deadline - loop.time()))
+        stopped = result and stopped
     return stopped
