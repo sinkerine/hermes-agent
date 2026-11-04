@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Hermes 인계 — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "제출되었습니다. Hermes가 응답을 처리하고 있습니다."
+      stale: "카드가 변경되었습니다. 최신 버전을 사용하세요."
+      inactive: "이 카드는 더 이상 활성 상태가 아닙니다."
+      unknown: "카드를 확인할 수 없습니다. Hermes에 새 카드를 요청하세요."
+      invalid: "유효하지 않은 작업입니다. 선택 사항을 확인하고 다시 시도하세요."
+      other_conversation: "이 카드는 다른 대화에 속해 있습니다."
     handoff:
       default_name: "Hermes 세션"
     media:

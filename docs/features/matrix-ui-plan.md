@@ -295,8 +295,13 @@ action arrives as a new user turn, and to answer in plain text if the tool error
 2. The existing guards run unchanged. Then, if the action key is present and `msgtype` is `m.text`, it calls
    `inbound.handle_action_event`. This happens before the text/media dispatch, so the action is never handled as
    ordinary text.
-3. `handle_action_event` checks authorisation with `_is_authorized_user` and drops silently if it fails. It then
-   calls `_resolve_message_context(...)` (mention and thread gating, `source`) and parses the action object
+3. `handle_action_event` derives context with `_resolve_message_context(..., defer_effects=True)` and
+   canonicalizes its full source before authorization. It calls the existing gateway
+   `_is_user_authorized_for_source(source)` policy seam; callback-only adapters forward chat type, room and
+   thread through `_is_sender_authorized`, and unwired standalone adapters retain `_is_authorized_user`.
+   Unauthorized actions drop silently before thread participation, read receipts, notices, acceptance or edits.
+   Authorized handling binds the identity's runtime home via `_profile_runtime_scope(..., hydrate_secrets=False)`
+   for confirmation, notices and dispatch, while the adapter store stays pinned. It then parses the action object
    (version, field types, nonce pattern). A malformed action gets the `bad_action` notice.
 4. It loads the record, or recovers it from the room (T7). If none, `unknown_ui` notice. It then checks:
    - the room is the same and the target is the original event id;
@@ -350,7 +355,10 @@ To update this card, call present_ui with replace_ui_id="ui_3fQ…".
     recovered, created_at, updated_at)`
   - `nonces(ui_event_id, nonce, action_event_id UNIQUE, sender, accepted_at, PRIMARY KEY(ui_event_id, nonce))`
 
-  `prune(90 days)` runs on connect.
+  `prune(90 days)` runs on connect and removes only mutable UI rows. Accepted repeatable actions refresh
+  `updated_at`; nonce/event tombstones reference ownership receipts and persist for their full lifetime.
+  Ownership receipts also retain authoritative `latest_revision`/`latest_status` watermarks, updated in the
+  same transaction as insertion, model revision or single-use acceptance, independently of mutable rows.
 - `accept_action` runs one `BEGIN IMMEDIATE` transaction. It checks the nonce, revision and status, inserts the
   nonce and, for `single_use`, writes `status = submitted`, `revision + 1` and the new payload. The commit **precedes**
   the status edit, so durable dedupe comes before any visible effect. A crash after the commit but before the turn
@@ -368,9 +376,13 @@ To update this card, call present_ui with replace_ui_id="ui_3fQ…".
      relation, and not redacted.
   3. Fetch the `m.replace` relations (`/_matrix/client/v1/rooms/{room}/relations/{event}/m.replace`, paginated, at
      most 50), decrypt them, keep only the bot-authored ones, and take the highest valid `revision`.
-  4. Store the result with `recovered = 1` and `session_key` set to the key derived for the acting event. It is
-     accepted only when the action's thread root equals the UI's thread relation. If recovery fails, the action gets
-     the `unknown_ui` notice.
+  4. Recover only when an independent durable ownership receipt for the original event already establishes
+     `room_id`, `ui_id`, `session_key`, `thread_id`, and `bot_mxid`. Match that receipt against fetched content and
+     the acting source exactly; never assign ownership from the acting user or current thread-root routing.
+     Require a trusted durable revision/status watermark: refuse room state older than it, a different status at
+     the same revision, or reactivation of a submitted/expired/superseded card. Store the result with `recovered = 1`
+     and the receipt's ownership, advancing the watermark atomically. Without a receipt or provable watermark,
+     refuse with `unknown_ui` and no turn. Complete database loss cannot be recovered safely from room events alone.
 
   The exact mautrix 0.21.1 calls are confirmed in T7.
 
@@ -749,3 +761,30 @@ is ever involved.
   single-use status raise `ValueError` without mutation — missing storage state and malformed caller transitions
   must not masquerade as accepted/stale actions — cost if wrong: T7 needs a specific missing-record handler that
   recovers or refuses without dispatching a turn. Optimistic revision mismatch still returns `False`.
+- Ruling: expand T7 minimally to add immutable ownership receipts in the existing profile-pinned SQLite store,
+  populated atomically on trusted insertion and backfilled only from existing trusted UI rows — room events lack
+  historical profile/per-user ownership, so deriving a missing record's session from the acting user is unsafe —
+  cost if wrong: additional retained metadata and recovery unavailable after complete database loss. Recovery
+  requires a matching receipt and room/session/thread/bot identity; receipts survive UI pruning for recovery.
+  No receipt means `unknown_ui`, no turn. Tests cover deletion with receipt, absent receipt, changed routing and
+  cross-profile attempts; source/store tests and user docs are included in T7 ownership.
+- Ruling: replay tombstones must survive for the full ownership/recovery lifetime, independently of mutable UI
+  rows. Old pruning could remove nonce history even while a UI survived; therefore migration marks every
+  pre-migration ownership receipt `replay_safe = 0`, preserves surviving history, and refuses actions/recovery
+  for those cards — historical completeness cannot be proven — cost if wrong: existing local feature cards
+  require a fresh `present_ui` card. Revisions and recovery never upgrade safety; only a genuinely new UI/event
+  creates a safe receipt. Migration must be atomic, idempotent, versioned, and tested across reopen.
+- T7 review fix: SQLite schema version 1 atomically migrates nonces from mutable `uis` foreign keys to
+  lifetime `ownership` receipts, preserves all surviving acceptance rows, and marks every pre-migration
+  receipt `replay_safe = 0`. Old pruning also removed aged nonces for surviving cards, so neither a legacy
+  UI row nor its receipt proves complete history. Unsafe receipts refuse actions/recovery; revision,
+  insertion and recovery cannot upgrade them. A genuinely new original card receives `replay_safe = 1`.
+  Complete receipt/history loss remains unrecoverable. Tests cover migration rollback, repeated reopen,
+  surviving/pruned legacy cards, acceptance activity refresh, delete/prune recovery and nonce/event replay.
+- T7 round-two consumed-state recovery fix: schema version 2 adds authoritative revision/status watermarks to
+  lifetime ownership receipts, atomically maintained by insertion, `commit_revision` and single-use acceptance.
+  Recovery fails closed on room rollback or reactivation of terminal status, including when both confirmation
+  sends failed before a successfully dispatched turn. This is distinct from the accepted commit-to-dispatch
+  crash window. Version 1 safe receipts backfill only from matching trusted local UI rows; missing/unprovable
+  state becomes unsafe. Version 0 and already-unsafe receipts never become safe. Migration DDL, backfill, safety
+  changes and version stamp commit or roll back together; retained dedupe is preserved across repeated reopen.

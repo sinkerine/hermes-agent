@@ -1909,7 +1909,8 @@ class MatrixAdapter(BasePlatformAdapter):
         capture_content = getattr(event, "content", None)
         capture_content = capture_content if isinstance(capture_content, dict) else (
             capture_content.serialize() if hasattr(capture_content, "serialize") else {})
-        if capture_content.get("msgtype") in ("m.text", "m.notice") and await self._try_secret_capture(
+        from .interactive_ui import INTERACTIVE_UI_ACTION_KEY
+        if INTERACTIVE_UI_ACTION_KEY not in capture_content and capture_content.get("msgtype") in ("m.text", "m.notice") and await self._try_secret_capture(
                 room_id, sender, str(getattr(event, "event_id", "")), capture_content,
                 capture_content.get("m.relates_to", {})):
             return
@@ -1949,6 +1950,12 @@ class MatrixAdapter(BasePlatformAdapter):
         # m.notice is the conventional bot-response msgtype; ignoring it prevents bot-to-bot loops.
         if msgtype == "m.notice" and not self._process_notices:
             return
+        if INTERACTIVE_UI_ACTION_KEY in source_content:
+            if msgtype == "m.text":
+                from .interactive_ui.inbound import handle_action_event
+                await handle_action_event(self, room_id=room_id, sender=sender, event_id=event_id,
+                                          event_ts=event_ts, content=source_content, relates_to=relates_to)
+            return
         if msgtype in ("m.image", "m.audio", "m.video", "m.file"):
             await self._handle_media_message(room_id, sender, event_id, event_ts, source_content, relates_to, msgtype)
         elif msgtype in ("m.text", "m.notice"):
@@ -1957,11 +1964,12 @@ class MatrixAdapter(BasePlatformAdapter):
     async def _resolve_message_context(
         self, room_id: str, sender: str, event_id: str, body: str, source_content: dict,
         relates_to: dict, mention_claimed: bool = False,
-        voice_gate: Optional[VoiceGate] = None) -> Optional[tuple]:
+        voice_gate: Optional[VoiceGate] = None, *, defer_effects: bool = False) -> Optional[tuple]:
         """Shared mention/thread/DM gating. Returns (body, is_dm, chat_type, thread_id,
         display_name, source) or None when the message should be dropped. ``mention_claimed``
         marks a parked voice claimed by the sender's follow-up bare @mention; ``voice_gate`` is
-        the in-flight mark of a parkable voice, released once the park decision is made."""
+        the in-flight mark of a parkable voice, released once the park decision is made.
+        ``defer_effects`` leaves thread participation/read receipts to an authorized action caller."""
         identity = await self._resolve_room_identity(room_id)
         is_dm = await self._is_dm_room(room_id)
         chat_type = "dm" if is_dm else "group"
@@ -2018,10 +2026,14 @@ class MatrixAdapter(BasePlatformAdapter):
             chat_id=room_id, chat_name=identity.display_name, chat_type=chat_type, user_id=sender,
             user_name=display_name, thread_id=thread_id, chat_topic=identity.room_topic,
             guild_id=identity.server_name, parent_chat_id=room_id if thread_id else None, message_id=event_id)
-        if thread_id:
-            await self._threads.mark_async(thread_id)  # covers real roots and synthetic ones alike
-        self._background_read_receipt(room_id, event_id)
+        if not defer_effects:
+            await self._apply_message_context(room_id, event_id, thread_id)
         return body, is_dm, chat_type, thread_id, display_name, source
+
+    async def _apply_message_context(self, room_id: str, event_id: str, thread_id: Optional[str]) -> None:
+        if thread_id:
+            await self._threads.mark_async(thread_id)
+        self._background_read_receipt(room_id, event_id)
 
     async def _extract_reply_context(
         self, room_id: str, body: str, relates_to: dict
@@ -2526,6 +2538,17 @@ class MatrixAdapter(BasePlatformAdapter):
         # Scoped read — the DEFAULT profile's os.environ opt-in must not authorize on a secondary bot.
         return _get_scoped_secret("GATEWAY_ALLOW_ALL_USERS", "").strip().lower() in ("true", "1", "yes") or bool(
             self._allowed_user_ids and user_id in self._allowed_user_ids)
+
+    def _is_authorized_source(self, source) -> bool:
+        """Authorize the pinned identity through the gateway's existing policy seam."""
+        runner = getattr(self, "gateway_runner", None)
+        check = getattr(runner, "_is_user_authorized_for_source", None)
+        if callable(check):
+            return check(source) is True
+        if self._authorization_check is not None:
+            return self._is_sender_authorized(source.user_id, source.chat_type, source.chat_id,
+                                              thread_id=source.thread_id, is_bot=source.is_bot) is True
+        return self._is_authorized_user(source.user_id, source.chat_id)
 
     async def _validate_matrix_prompt_reactor(
         self, room_id: str, target_event_id: str, sender: str, prompt: Any, prompt_label: str) -> bool:

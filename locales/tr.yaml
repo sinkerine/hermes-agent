@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Hermes devri — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Gönderildi. Hermes yanıtınızı işliyor."
+      stale: "Bu kart değişti. En son sürümü kullanın."
+      inactive: "Bu kart artık etkin değil."
+      unknown: "Bu kart doğrulanamadı. Hermes’ten yeni bir kart isteyin."
+      invalid: "Geçersiz işlem. Seçimlerinizi kontrol edip tekrar deneyin."
+      other_conversation: "Bu kart başka bir konuşmaya ait."
     handoff:
       default_name: "Hermes oturumu"
     media:

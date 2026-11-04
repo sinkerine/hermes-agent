@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Traspaso de Hermes — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Enviado. Hermes está procesando tu respuesta."
+      stale: "Esta tarjeta ha cambiado. Usa la versión más reciente."
+      inactive: "Esta tarjeta ya no está activa."
+      unknown: "No se pudo verificar esta tarjeta. Pide una nueva a Hermes."
+      invalid: "Acción no válida. Revisa tus opciones e inténtalo de nuevo."
+      other_conversation: "Esta tarjeta pertenece a otra conversación."
     handoff:
       default_name: "Sesión de Hermes"
     media:

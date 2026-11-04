@@ -934,12 +934,47 @@ the stored revision unchanged. The uploaded image may remain in the homeserver's
 media repository; Hermes does not automatically delete uploaded media.
 
 The producer is available only in Matrix conversations and is refused in delegated
-subagents. Interactive action handling is a separate gateway component: the card
-protocol defines backend actions as new user turns in the same conversation, with
-an immediate submitted-state confirmation for single-use actions. The producer
-alone does not enable that inbound action bridge.
+subagents. Pressing a submit button or submitting a form sends a visible Matrix
+reply and starts one new user turn in the card's conversation. Hermes validates
+choices against its stored card, applies the usual room, mention, thread and live
+user authorization rules, and ignores the reply's text as intent. Unauthorized
+users receive no response. Cards remain usable after disabling the producer toolset.
 
-Card records are stored in `interactive_ui.sqlite3` in the profile's Matrix store
-directory (beside its crypto store). The adapter pins this directory when it
-connects and prunes records older than 90 days. Treat this database as conversation
-data when backing up or securing your profile.
+Single-use actions update the card immediately to “submitted”, before the model
+processes the response. Forms are single-use by default; repeatable buttons leave
+the card active. Duplicate deliveries are silent, including after a restart.
+Stale, inactive or invalid actions receive a short notice in the same thread and
+start no turn. A status edit is retried once on transport failure; processing can
+still continue if both edit attempts fail.
+
+Card records and accepted action nonces are stored in `interactive_ui.sqlite3` in
+the profile's Matrix store directory (beside its crypto store). The adapter pins
+this directory when it connects and prunes mutable card records after 90 days
+without a revision or accepted action. Immutable ownership receipts, authoritative
+revision/status watermarks and accepted nonce/event tombstones remain for the
+database's lifetime, including through card pruning and recovery. The watermark
+advances atomically with card insertion, model revisions and single-use acceptance.
+Recovery uses the original bot-authored room event and its latest edits, preserving
+ownership and refusing any state older than the watermark or any reactivation of a
+submitted, expired or superseded card. A consumed card stays consumed even if both
+confirmation edits failed. Recovery decrypts encrypted events and refuses incomplete
+edit history beyond 50 relations. If the receipt or its trusted watermark is missing,
+including after loss of the whole database, ask Hermes for a new card. Back up and
+secure this database as conversation data.
+
+The atomic, versioned migration (`PRAGMA user_version = 2`) preserves all surviving
+acceptance history. Stores predating version 1 could already have deleted nonces
+even for surviving cards; their receipts remain unsafe. For version 1 stores, a
+receipt with complete replay history receives a watermark only from a matching
+trusted local card row. Missing card rows or unprovable state make the receipt
+unsafe; room events alone cannot establish the last accepted revision. Unsafe
+cards refuse further actions and recovery with a notice asking for a new card.
+Revising or reinserting a legacy card does not restore its eligibility: ask Hermes
+to create a new card without `replace_ui_id`. Reopening the database never upgrades
+unsafe receipts. New cards retain their replay history and watermarks for as long
+as their ownership receipt is retained.
+
+Acceptance is committed before the confirmation edit and model dispatch. A gateway
+crash between that commit and dispatch can lose the turn; retrying the same action
+remains silent because its nonce was already accepted. Ask Hermes to continue in
+a normal message if that happens.

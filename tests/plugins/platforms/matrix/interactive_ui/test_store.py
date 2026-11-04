@@ -49,15 +49,19 @@ def test_round_trip_and_snapshot_ownership(store):
     assert store.get_by_event("$ui") == expected
     recovered = record("$recovered", "recovered", recovered=True)
     original = deepcopy(recovered)
+    store.insert(replace(recovered, recovered=False))
+    store._db.execute("DELETE FROM uis WHERE ui_event_id = ?", (recovered.ui_event_id,))
     store.insert(recovered)
     recovered.payload["state"]["later"] = "mutation"
     assert store.get_by_event("$recovered") == original
 
 
 def test_unique_ui_ids_and_events_do_not_overwrite(store):
-    for duplicate in (record(), record("$another"), record(ui_id="another")):
+    for duplicate in (record(), record("$another")):
         with pytest.raises(sqlite3.IntegrityError):
             store.insert(duplicate)
+    with pytest.raises(ValueError, match="ownership receipt is immutable"):
+        store.insert(record(ui_id="another"))
     assert store.get_by_event("$ui") == record()
     assert accept(store) == "accepted"
 
@@ -145,6 +149,8 @@ def test_two_single_use_actions_first_wins_across_connections(tmp_path):
 def test_restart_retains_nonces_submitted_revision_and_wal(tmp_path):
     path = tmp_path / "interactive_ui.sqlite3"
     first = InteractiveUiStore(path)
+    first.insert(record())
+    first._db.execute("DELETE FROM uis")
     first.insert(record(recovered=True))
     payload = revision_payload(first)
     assert accept(first, payload=payload) == "accepted"
@@ -216,7 +222,7 @@ def test_missing_record_raises_keyerror_after_event_dedupe(store):
     assert accept(store, event="$missing", action="$unknown") == "accepted"
 
 
-def test_prune_old_records_and_nonces_uses_last_revision_age(tmp_path, monkeypatch):
+def test_prune_old_records_retains_tombstones_and_uses_last_revision_age(tmp_path, monkeypatch):
     now = 2_000_000_000
     monkeypatch.setattr("plugins.platforms.matrix.interactive_ui.store.time", lambda: now)
     path = tmp_path / "interactive_ui.sqlite3"
@@ -236,7 +242,7 @@ def test_prune_old_records_and_nonces_uses_last_revision_age(tmp_path, monkeypat
         assert instance.get_by_event("$revised") is not None
         assert instance.get_by_event("$fresh") is not None
         with sqlite3.connect(path) as observer:
-            assert observer.execute("SELECT COUNT(*) FROM nonces").fetchone()[0] == 0
+            assert observer.execute("SELECT COUNT(*) FROM nonces").fetchone()[0] == 2
         assert instance.prune() == 0
         with pytest.raises(ValueError):
             instance.prune(older_than_days=-1)
@@ -259,3 +265,85 @@ def test_explicit_path_is_pinned_and_profiles_are_isolated(tmp_path, monkeypatch
     finally:
         first.close()
         second.close()
+
+
+def test_repeatable_acceptance_refreshes_activity_and_retains_old_tombstones(tmp_path, monkeypatch):
+    now = 2_000_000_000
+    monkeypatch.setattr("plugins.platforms.matrix.interactive_ui.store.time", lambda: now)
+    instance = InteractiveUiStore(tmp_path / "ui.sqlite3")
+    try:
+        instance.insert(record())
+        assert accept(instance) == "accepted"
+        now += 89 * 86400
+        assert accept(instance, nonce="new", action="$new") == "accepted"
+        now += 2 * 86400
+        assert instance.prune() == 0
+        assert accept(instance, action="$retry") == "duplicate"
+        now += 91 * 86400
+        assert instance.prune() == 1
+        assert accept(instance, action="$retry") == "duplicate"
+        assert accept(instance, nonce="other") == "duplicate"
+    finally:
+        instance.close()
+
+
+def test_pruned_original_identity_cannot_be_reused_for_new_receipt(store):
+    assert accept(store) == "accepted"
+    store._db.execute("UPDATE uis SET updated_at = 0")
+    assert store.prune() == 1
+    receipt = store.get_ownership("$ui")
+    with pytest.raises(sqlite3.IntegrityError, match="UI identity"):
+        store.insert(record("$new-original"))
+    assert store.get_ownership("$new-original") is None
+    assert store.get_ownership("$ui") == receipt
+    assert store.is_duplicate_action("$ui", "n" * 22, "$retry")
+    store.insert(record(recovered=True))
+    assert accept(store, nonce="fresh", action="$fresh") == "accepted"
+
+
+@pytest.mark.parametrize("status", ["active", "submitted", "expired", "superseded"])
+def test_retained_watermark_blocks_stale_reinsertion(store, status):
+    old = store.get_by_event("$ui")
+    payload = revision_payload(store, status=status)
+    assert store.commit_revision("$ui", expected_revision=0, payload=payload)
+    store._db.execute("DELETE FROM uis")
+    with pytest.raises(ValueError, match="watermark"):
+        store.insert(replace(old, recovered=True))
+    assert store.get_by_event("$ui") is None
+    store.insert(replace(old, revision=1, status=status, payload=payload, recovered=True))
+    assert store.get_by_event("$ui").revision == 1
+
+
+@pytest.mark.parametrize("operation", ["insert", "revision", "accept"])
+def test_watermark_write_failure_rolls_back_entire_transition(store, operation):
+    store._db.execute("""CREATE TRIGGER fail_watermark BEFORE UPDATE ON ownership
+        BEGIN SELECT RAISE(ABORT, 'watermark failed'); END""")
+    before = store.get_by_event("$ui")
+    with pytest.raises(sqlite3.IntegrityError, match="watermark failed"):
+        if operation == "insert":
+            store.insert(record("$new", "new"))
+        elif operation == "revision":
+            store.commit_revision("$ui", expected_revision=0, payload=revision_payload(store))
+        else:
+            accept(store, payload=revision_payload(store))
+    assert store.get_by_event("$ui") == before
+    assert store.get_watermark("$ui") == (0, "active")
+    assert store.get_by_event("$new") is None
+    assert store.get_ownership("$new") is None
+    assert not store.is_duplicate_action("$ui", "n" * 22, "$action")
+    store._db.execute("DROP TRIGGER fail_watermark")
+    assert accept(store, payload=revision_payload(store)) == "accepted"
+    assert store.get_watermark("$ui") == (1, "submitted")
+
+
+@pytest.mark.parametrize("status", ["submitted", "expired", "superseded"])
+def test_recovery_cannot_reactivate_terminal_watermark_at_higher_revision(store, status):
+    before = store.get_by_event("$ui")
+    payload = revision_payload(store, status=status)
+    assert store.commit_revision("$ui", expected_revision=0, payload=payload)
+    store._db.execute("DELETE FROM uis")
+    for revision in (1, 2):
+        with pytest.raises(ValueError, match="watermark"):
+            store.insert(replace(before, revision=revision, payload={**before.payload, "revision": revision},
+                                 recovered=True))
+    assert store.get_watermark("$ui") == (1, status)

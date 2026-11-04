@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: تسليم Hermes — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "تم الإرسال. يعالج Hermes ردك."
+      stale: "تغيرت هذه البطاقة. استخدم أحدث إصدار."
+      inactive: "لم تعد هذه البطاقة نشطة."
+      unknown: "تعذر التحقق من البطاقة. اطلب بطاقة جديدة من Hermes."
+      invalid: "الإجراء غير صالح. تحقق من اختياراتك وحاول مجددًا."
+      other_conversation: "هذه البطاقة تخص محادثة أخرى."
     handoff:
       default_name: "جلسة Hermes"
     media:

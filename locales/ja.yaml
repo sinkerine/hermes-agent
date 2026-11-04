@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Hermes ハンドオフ — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "送信しました。Hermes が回答を処理しています。"
+      stale: "カードが更新されました。最新の内容を使用してください。"
+      inactive: "このカードは無効になりました。"
+      unknown: "カードを確認できません。Hermes に新しいカードを依頼してください。"
+      invalid: "無効な操作です。選択内容を確認して再試行してください。"
+      other_conversation: "このカードは別の会話に属しています。"
     handoff:
       default_name: "Hermes セッション"
     media:

@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Passaggio di consegne Hermes — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Inviato. Hermes sta elaborando la risposta."
+      stale: "Questa scheda è cambiata. Usa la versione più recente."
+      inactive: "Questa scheda non è più attiva."
+      unknown: "Impossibile verificare la scheda. Chiedine una nuova a Hermes."
+      invalid: "Azione non valida. Controlla le scelte e riprova."
+      other_conversation: "Questa scheda appartiene a un’altra conversazione."
     handoff:
       default_name: "Sessione Hermes"
     media:

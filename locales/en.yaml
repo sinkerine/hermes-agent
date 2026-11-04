@@ -1398,6 +1398,13 @@ platform:
       seed: ":thread: Hermes handoff — *{name}*"
 
   matrix:
+    interactive_ui:
+      submitted_status: "Submitted. Hermes is processing your response."
+      stale: "This card has changed. Use its latest version."
+      inactive: "This card is no longer active."
+      unknown: "This card could not be verified. Ask Hermes for a new one."
+      invalid: "This action is invalid. Check your choices and try again."
+      other_conversation: "This card belongs to another conversation."
     handoff:
       default_name: "Hermes session"
     media:

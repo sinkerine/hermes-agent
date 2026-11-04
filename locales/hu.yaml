@@ -1356,6 +1356,13 @@ platform:
     handoff:
       seed: ":thread: Hermes átadás — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Elküldve. Hermes feldolgozza a válaszodat."
+      stale: "Ez a kártya megváltozott. Használd a legújabb változatot."
+      inactive: "Ez a kártya már nem aktív."
+      unknown: "A kártya nem ellenőrizhető. Kérj újat Hermestől."
+      invalid: "Érvénytelen művelet. Ellenőrizd a választásaidat, és próbáld újra."
+      other_conversation: "Ez a kártya másik beszélgetéshez tartozik."
     handoff:
       default_name: "Hermes-munkamenet"
     media:

@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Aistriú Hermes — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Seolta. Tá Hermes ag próiseáil do fhreagra."
+      stale: "Athraíodh an cárta seo. Úsáid an leagan is déanaí."
+      inactive: "Níl an cárta seo gníomhach a thuilleadh."
+      unknown: "Níorbh fhéidir an cárta seo a fhíorú. Iarr ceann nua ar Hermes."
+      invalid: "Gníomh neamhbhailí. Seiceáil do roghanna agus bain triail eile as."
+      other_conversation: "Baineann an cárta seo le comhrá eile."
     handoff:
       default_name: "Seisiún Hermes"
     media:

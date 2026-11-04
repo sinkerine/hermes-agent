@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Hermes-oorhandiging — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Ingedien. Hermes verwerk jou antwoord."
+      stale: "Hierdie kaart het verander. Gebruik die jongste weergawe."
+      inactive: "Hierdie kaart is nie meer aktief nie."
+      unknown: "Hierdie kaart kon nie bevestig word nie. Vra Hermes vir ’n nuwe een."
+      invalid: "Ongeldige aksie. Gaan jou keuses na en probeer weer."
+      other_conversation: "Hierdie kaart behoort aan ’n ander gesprek."
     handoff:
       default_name: "Hermes-sessie"
     media:

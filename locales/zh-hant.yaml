@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Hermes 交接 — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "已提交，Hermes 正在處理你的回覆。"
+      stale: "卡片已更新，請使用最新版本。"
+      inactive: "此卡片已失效。"
+      unknown: "無法驗證此卡片，請讓 Hermes 重新產生。"
+      invalid: "操作無效，請檢查選項後重試。"
+      other_conversation: "此卡片屬於另一個對話。"
     handoff:
       default_name: "Hermes 工作階段"
     media:

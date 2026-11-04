@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Передача Hermes — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Надіслано. Hermes обробляє вашу відповідь."
+      stale: "Картка змінилася. Скористайтеся останньою версією."
+      inactive: "Ця картка більше не активна."
+      unknown: "Не вдалося перевірити картку. Попросіть Hermes створити нову."
+      invalid: "Недійсна дія. Перевірте вибір і спробуйте ще раз."
+      other_conversation: "Ця картка належить іншій розмові."
     handoff:
       default_name: "Сеанс Hermes"
     media:

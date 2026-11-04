@@ -1339,6 +1339,13 @@ platform:
     handoff:
       seed: ":thread: Hermes-Übergabe — *{name}*"
   matrix:
+    interactive_ui:
+      submitted_status: "Gesendet. Hermes verarbeitet deine Antwort."
+      stale: "Diese Karte wurde geändert. Verwende die neueste Version."
+      inactive: "Diese Karte ist nicht mehr aktiv."
+      unknown: "Diese Karte konnte nicht geprüft werden. Bitte Hermes um eine neue."
+      invalid: "Ungültige Aktion. Prüfe deine Auswahl und versuche es erneut."
+      other_conversation: "Diese Karte gehört zu einer anderen Unterhaltung."
     handoff:
       default_name: "Hermes-Sitzung"
     media:
