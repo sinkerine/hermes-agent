@@ -495,6 +495,8 @@ Trim an equal number of characters elsewhere in the root, compressing wording on
 - Ruling: enforce rebind force checks and project creation reuse atomically in short SQLite write transactions; store helpers join caller-owned transactions — concurrent Matrix threads share room/workspace state — cost: transaction ownership support in project-store APIs. Concurrent-handler and commit/rollback tests cover the change.
 - T4 verification limitation: the broad CLI regression run reported 108 failures and 161 errors, with reproduction evidence against committed base `4a4b22e0b4`; focused final verification passed 113 tests and all 14 checks. New non-English command messages currently use English fallback text with matching placeholders.
 
+- T5 E2E repair ruling: reset terminal route cwd state when an empty conversation publishes its initial project pin, because a saved route cwd overrides the scoped default. Continuations and compression retain terminal `cd` state; LOCAL policy is untouched. Cost: one terminal lifecycle seam in project turn preparation.
+
 ## 7. Risks and notes for implementers
 
 - **T2 (stand-in) is the long pole.** mautrix may call endpoints that aren't listed here. Run the smoke test, read the gateway log for 404s, and add them. Never weaken the adapter to fit the stand-in.

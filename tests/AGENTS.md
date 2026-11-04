@@ -152,3 +152,35 @@ export function hiddenWindowsChildOptions(options = {}, isWindows = process.plat
 ```
 If the logic lives inline in a god-file and extraction feels disruptive, that is the signal to
 extract, not to regex around it.
+
+
+## Sandbox feature E2E
+
+A feature E2E is a user-journey module under `tests/e2e/core/` driving the REAL
+`hermes gateway run` child (`tests/e2e/core/platforms/_helpers.py::GatewayUnderTest`).
+Start, stop and restart it on the same disposable HOME with a local platform stand-in
+(`tests/fakes/platforms/*_standin.py`) and the recording fake model
+(`tests/fakes/fake_llm_provider.py`, scripted by `Director`). Never use the developer's
+live `~/.hermes`, a real chat network, or a real provider.
+
+Build the PM development/test environment with the platform extra. Follow the fresh-build
+instructions above if `.venv` already exists. The supported explicit `HERMES_PYTHON` runner
+override selects that interpreter; the runner's default separate test environment may omit
+the platform extra and skip the journey even when the PM environment has it.
+
+```bash
+python -m pm.build_env --source . --out .venv --group dev --group test --extra matrix
+HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/e2e/core/platforms/test_matrix_project_routing.py -v
+HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/e2e/core/platforms/test_matrix_standin_smoke.py -v
+```
+
+Assert on delivered stand-in messages and recorded model requests (system prompts, history,
+actual tool results), not log text. Use production DB/recording seams for session identity.
+Optional SDK imports use `importorskip` with a reason naming the extra; verification with
+the extra installed must execute, not skip. With Matrix, call `MatrixDriver.arm_readiness()`
+before EVERY `GatewayUnderTest.start()`, including restart, to require fresh adapter traffic.
+
+The journey owns its gateway process group and local servers: `finally` blocks stop the
+gateway and stand-in, and the fake model context manager closes its server automatically,
+including on assertion failure. All config, projects, transcripts and DBs live in pytest's
+disposable directory; no manual live-account setup or cleanup is needed.
