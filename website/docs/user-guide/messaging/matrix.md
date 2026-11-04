@@ -904,3 +904,42 @@ For more information on securing your Hermes Agent deployment, see the [Security
 - **Auto-join**: The bot automatically accepts room invites and joins. It starts responding immediately after joining.
 - **Media support**: Hermes can send and receive images, audio, video, and file attachments. Media is uploaded to your homeserver using the Matrix content repository API.
 - **Native voice messages (MSC3245)**: The Matrix adapter automatically tags outgoing voice messages with the `org.matrix.msc3245.voice` flag. This means TTS responses and voice audio are rendered as **native voice bubbles** in Element and other clients that support MSC3245, rather than as generic audio file attachments. Incoming voice messages with the MSC3245 flag are also correctly identified and routed to speech-to-text transcription. No configuration is needed — this works automatically. An audio file attached with a `MEDIA:` tag (an `.mp3`/`.wav` the agent produced, not marked `[[audio_as_voice]]`) is sent as a plain `m.audio` attachment in its original format instead of a voice bubble.
+
+## Interactive UI
+
+Interactive UI replies are optional and off by default. Run `hermes tools`, select
+Matrix, and enable **interactive_ui**, or accept the interactive UI prompt during
+Matrix setup. The selection is stored in `platform_toolsets.matrix` in your
+profile's `config.yaml`, alongside the other enabled toolsets. It applies to the
+next session; use `/new` to start one after changing the selection.
+
+Cards require an Element Web build that supports the `feature_interactive_ui`
+labs flag, with that flag enabled. Other clients show the complete text fallback,
+including table rows, chart values, graph connections, options and action labels.
+Hermes can revise a card in place. Oversized or invalid cards produce a tool error
+so the agent can correct them or answer in plain text; cards are never truncated.
+
+Cards can include local PNG, JPEG, GIF and WebP uploads. Hermes checks image magic
+bytes and the configured Matrix media size limit. It does not fetch remote images.
+Uploads use encrypted attachments in encrypted rooms. Before uploading, Hermes
+requires confirmed room encryption state and working encryption support for an
+encrypted room or a required E2EE policy. If state is missing or its lookup fails,
+the tool refuses the upload without sending a card or changing its stored revision.
+Keep secrets and credentials out of cards, just as you would keep them out of
+ordinary room messages.
+
+Hermes checks the card limits again with the homeserver's returned media URI. If
+that URI is invalid or makes the card too large, Hermes sends no card and leaves
+the stored revision unchanged. The uploaded image may remain in the homeserver's
+media repository; Hermes does not automatically delete uploaded media.
+
+The producer is available only in Matrix conversations and is refused in delegated
+subagents. Interactive action handling is a separate gateway component: the card
+protocol defines backend actions as new user turns in the same conversation, with
+an immediate submitted-state confirmation for single-use actions. The producer
+alone does not enable that inbound action bridge.
+
+Card records are stored in `interactive_ui.sqlite3` in the profile's Matrix store
+directory (beside its crypto store). The adapter pins this directory when it
+connects and prunes records older than 90 days. Treat this database as conversation
+data when backing up or securing your profile.

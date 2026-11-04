@@ -78,5 +78,6 @@ def test_interactive_setup_explicitly_syncs_matrix(tmp_path, monkeypatch):
     monkeypatch.setattr(pm, "sync_venv", lambda extras, **kwargs: calls.append((extras, kwargs)))
     monkeypatch.setattr(pm, "ensure_import", lambda *args: pytest.fail("setup used implicit installation"))
     monkeypatch.setattr(pm_extras, "missing", lambda extra: ("asyncpg",))
-    matrix_adapter.interactive_setup()
+    from plugins.platforms.matrix.setup import interactive_setup
+    interactive_setup()
     assert calls == [(["matrix"], {"explicit": True})]

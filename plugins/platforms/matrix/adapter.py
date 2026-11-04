@@ -695,6 +695,8 @@ class MatrixAdapter(BasePlatformAdapter):
         self._encryption: bool = self._e2ee_mode != "off"
         self._device_id: str = config.extra.get("device_id", "") or _get_scoped_secret("MATRIX_DEVICE_ID", "").strip()
         self._device_id_unverified: bool = False
+        self._interactive_ui_store = None
+        self._interactive_ui_controller = None
         self._client: Any = None  # mautrix.client.Client
         self._crypto_db: Any = None  # mautrix.util.async_db.Database
         self._store_dir: Optional[Path] = None  # pinned per profile in connect()
@@ -1201,6 +1203,11 @@ class MatrixAdapter(BasePlatformAdapter):
         client.add_event_handler(EventType.ROOM_MESSAGE, self._on_room_message, wait_sync=True)
         client.add_event_handler(EventType.REACTION, self._on_reaction, wait_sync=True)
         client.add_event_handler(IntEvt.INVITE, self._on_invite, wait_sync=True)
+        from .interactive_ui.producer import InteractiveUiController
+        from .interactive_ui.store import InteractiveUiStore
+        self._interactive_ui_store = InteractiveUiStore(self._store_dir / "interactive_ui.sqlite3")
+        self._interactive_ui_store.prune()
+        self._interactive_ui_controller = InteractiveUiController(self, self._interactive_ui_store)
         self._startup_ts = time.time()
         self._reset_clock_skew_detector()  # a reconnect after an NTP fix starts clean
         self._closing = False
@@ -1234,6 +1241,12 @@ class MatrixAdapter(BasePlatformAdapter):
                 await asyncio.gather(*pending, return_exceptions=True)
         self._invite_join_tasks.clear()
         self._reaction_redaction_tasks.clear()
+        controller = self._interactive_ui_controller
+        if controller is not None:
+            async with controller.lock:
+                self._interactive_ui_controller = None
+                controller.store.close()
+                self._interactive_ui_store = None
         if getattr(self, "_crypto_db", None):
             try:
                 await self._crypto_db.stop()
@@ -2978,67 +2991,6 @@ def _standalone_payloads(message: str) -> list[dict[str, Any]]:
     return payloads
 
 
-def interactive_setup() -> None:
-    """Interactive credential setup (setup_fn); CLI helpers are lazy-imported."""
-    from hermes_cli.config import get_env_value, remove_env_value, save_env_value
-    from hermes_cli.cli_output import prompt, prompt_yes_no, print_header, print_info, print_success, print_warning
-    from hermes_cli.setup_platforms import declines_reconfigure
-    print_header("Matrix")
-    if declines_reconfigure("Matrix", "Reconfigure Matrix?", "MATRIX_ACCESS_TOKEN", "MATRIX_PASSWORD"):
-        return
-    for line in ("Works with any Matrix homeserver (Synapse, Conduit, Dendrite, or matrix.org).",
-                 "   1. Create a bot user on your homeserver, or use your own account",
-                 "   2. Get an access token from Element, or provide user ID + password"):
-        print_info(line)
-    def _ask(key: str, question: str, **kw) -> str:
-        value = prompt(question, **kw)
-        if value:
-            save_env_value(key, value.rstrip("/") if key == "MATRIX_HOMESERVER" else value)
-        return value
-    _ask("MATRIX_HOMESERVER", "Homeserver URL (e.g. https://matrix.example.org)")
-    print_info("Auth: provide an access token (recommended), or user ID + password.")
-    token = _ask("MATRIX_ACCESS_TOKEN", "Access token (leave empty for password login)", password=True)
-    if token:
-        _ask("MATRIX_USER_ID", "User ID (@bot:server — optional, will be auto-detected)")
-        print_success("Matrix access token saved")
-    else:
-        _ask("MATRIX_USER_ID", "User ID (@bot:server)")
-        if _ask("MATRIX_PASSWORD", "Password", password=True):
-            print_success("Matrix credentials saved")
-    if token or get_env_value("MATRIX_PASSWORD"):
-        want_e2ee = prompt_yes_no("Enable end-to-end encryption (E2EE)?", False)
-        if want_e2ee:
-            save_env_value("MATRIX_ENCRYPTION", "true")
-            print_success("E2EE enabled")
-        try:
-            from pm import sync_venv
-
-            print_info("Preparing Matrix dependencies...")
-            sync_venv(["matrix"], explicit=True)
-            print_success("Matrix dependencies prepared. Restart Hermes to use them.")
-        except Exception as exc:
-            print_warning(f"Matrix dependencies could not be prepared: {exc}")
-            print_info("Run `hermes pm install`, then restart Hermes.")
-        print_info("🔒 Security: Restrict who can use your bot")
-        print_info("   Matrix user IDs look like @username:server")
-        allowed_users = prompt("Allowed user IDs (comma-separated, leave empty for open access)")
-        if allowed_users:
-            save_env_value("MATRIX_ALLOWED_USERS", allowed_users.replace(" ", ""))
-            print_success("Matrix allowlist configured")
-        else:
-            print_info("⚠️  No allowlist set - anyone who can message the bot can use it!")
-        for line in ("📬 Home Room: where Hermes delivers cron job results and notifications.",
-                     "   Room IDs look like !abc123:server (shown in Element room settings)",
-                     "   You can also set this later by typing /set-home in a Matrix room.",
-                     "Leave blank to clear a previously saved home room (cron / notifications)."):
-            print_info(line)
-        home_room = prompt("Home room ID (leave empty to set later with /set-home)").strip()
-        if home_room:
-            save_env_value("MATRIX_HOME_ROOM", home_room)
-        elif remove_env_value("MATRIX_HOME_ROOM"):
-            print_info("Home room cleared.")
-
-
 _YAML_BRIDGE = (  # (yaml key, env var, kind) for apply_yaml_bridge
     ("require_mention", "MATRIX_REQUIRE_MENTION", "lower"), ("process_notices", "MATRIX_PROCESS_NOTICES", "lower"),
     ("session_scope", "MATRIX_SESSION_SCOPE", "lower"), ("auto_thread", "MATRIX_AUTO_THREAD", "lower"),
@@ -3070,6 +3022,8 @@ def register(ctx) -> None:
     from .adapter_hint import PLATFORM_HINT
     from .send_targets import SEND_ENTRY_KWARGS
     from .dashboard_card import DASHBOARD_CARD
+    from .setup import interactive_setup
+    from .interactive_ui.tool import register_present_ui
     from . import gateway_env  # env -> GatewayConfig bridge (gateway.config_env)
     ctx.register_platform(
         **SEND_ENTRY_KWARGS,  # send_message target syntax + routing
@@ -3085,3 +3039,4 @@ def register(ctx) -> None:
         env_overrides=gateway_env.ENV_OVERRIDES,
         env_enable_credentials=gateway_env.ENV_ENABLE_CREDENTIALS, **gateway_env.AUTHZ,
     )
+    register_present_ui(ctx)

@@ -10,7 +10,7 @@ clear-on-blank behavior added in the follow-up to PR #58421.
 import hermes_cli.config as config_mod
 import hermes_cli.cli_output as cli_output_mod
 import pm as pm_mod
-from plugins.platforms.matrix.adapter import interactive_setup
+from plugins.platforms.matrix.setup import interactive_setup
 
 
 def _patch_setup_io(monkeypatch, prompts, yes_no_responses, saved, removed, existing):
@@ -58,7 +58,7 @@ _PROMPTS_WHITESPACE = [
     "   ",
 ]
 # E2EE? = False so we don't pull the [encryption] extras.
-_YES_NO = [False]
+_YES_NO = [False, False]
 
 
 class TestMatrixHomeChannelClear:
@@ -80,3 +80,38 @@ class TestMatrixHomeChannelClear:
         assert "MATRIX_HOME_ROOM" not in saved
 
 
+
+
+def test_setup_opt_in_saves_existing_matrix_tools_switch(monkeypatch, tmp_path, capsys):
+    from hermes_cli.config import load_config, save_config
+    from hermes_cli.tools_config import _get_platform_tools
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    config = load_config()
+    config["platform_toolsets"] = {"matrix": ["terminal"], "telegram": ["file"]}
+    save_config(config)
+    saved, removed = {}, []
+    _patch_setup_io(monkeypatch, _PROMPTS_NONEMPTY, [False, True], saved, removed, existing={})
+    messages = []
+    monkeypatch.setattr(cli_output_mod, "print_info", lambda message: messages.append(message))
+    interactive_setup()
+    enabled = _get_platform_tools(load_config(), "matrix")
+    assert {"interactive_ui", "terminal"} <= enabled
+    assert load_config()["platform_toolsets"]["telegram"] == ["file"]
+    assert "interactive_ui" in (tmp_path / "config.yaml").read_text()
+    assert not any("INTERACTIVE" in name for name in saved)
+    assert any("next session or /new" in message for message in messages)
+
+
+def test_setup_default_declines_and_disables_existing_selection(monkeypatch, tmp_path):
+    from hermes_cli.config import load_config, save_config
+    from hermes_cli.tools_config import _get_platform_tools
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    config = load_config()
+    config["platform_toolsets"] = {"matrix": ["terminal", "interactive_ui"]}
+    save_config(config)
+    _patch_setup_io(monkeypatch, _PROMPTS_BLANK, [False, False], {}, [], existing={})
+    interactive_setup()
+    assert "interactive_ui" not in _get_platform_tools(load_config(), "matrix")
+    assert "terminal" in _get_platform_tools(load_config(), "matrix")
