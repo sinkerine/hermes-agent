@@ -42,6 +42,14 @@ approval:
     second_one: "{count}초"
     second_other: "{count}초"
 gateway:
+  project:
+    error:
+      no_identity: "프로젝트 라우팅에서 수신 봇을 식별하지 못했습니다. 메시지를 다시 보내 주세요."
+      missing: "프로젝트 {project}이(가) 더 이상 존재하지 않습니다. 다른 프로젝트를 연결하고 새 대화를 시작하세요."
+      archived: "프로젝트 {project}이(가) 보관되었습니다. 복원하거나 다른 프로젝트로 새 대화를 시작하세요."
+      no_path: "프로젝트 {project}에 기본 폴더가 없습니다. 계속하기 전에 설정하세요."
+      path_missing: "프로젝트 {project}의 폴더를 사용할 수 없습니다: {path}. 계속하기 전에 복원하세요."
+      backend: "프로젝트 라우팅에는 로컬 터미널 백엔드가 필요합니다. 현재 백엔드는 {backend}입니다."
   approval_expired: "⚠️ 승인이 만료되었습니다 (에이전트가 더 이상 대기하지 않습니다). 에이전트에게 다시 시도하도록 요청하세요."
   draining: "⏳ 재시작 전에 활성 에이전트 {count}명을 정리하는 중..."
   goal_cleared: "✓ 목표가 삭제되었습니다."

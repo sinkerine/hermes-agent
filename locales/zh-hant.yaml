@@ -42,6 +42,14 @@ approval:
     second_one: "{count} 秒"
     second_other: "{count} 秒"
 gateway:
+  project:
+    error:
+      no_identity: "專案路由無法識別接收訊息的機器人。請重新傳送訊息。"
+      missing: "專案 {project} 已不存在。請綁定其他專案並開始新對話。"
+      archived: "專案 {project} 已封存。請還原專案，或使用其他專案開始新對話。"
+      no_path: "專案 {project} 沒有主要資料夾。請設定後再繼續。"
+      path_missing: "專案 {project} 的資料夾無法使用：{path}。請還原後再繼續。"
+      backend: "專案路由需要本機終端後端；目前後端為 {backend}。"
   approval_expired: "⚠️ 批准已逾期（代理不再等待）。請讓代理重試。"
   draining: "⏳ 正在等待 {count} 個活躍代理結束後重新啟動..."
   goal_cleared: "✓ 目標已清除。"

@@ -478,6 +478,12 @@ python scripts/gen_gateway_command_parity.py && git diff --exit-code website/doc
 
 Trim an equal number of characters elsewhere in the root, compressing wording only, so it stays ≤ 12,000 chars.
 
+## Implementation rulings
+
+- Ruling: run implementation tasks sequentially in this worktree — one active writer per checkout — cost: longer elapsed time.
+- Ruling: only an unscoped standalone turn supplies ambient `TERMINAL_*` via the existing `env_overlay` API when preparing its terminal policy; active mappings (including empty mappings) and refusal scopes remain authoritative — preserve launch policy rather than silently changing backends — cost if wrong: policy precedence regression. Resolution and execution validate the same effective backend; tests cover precedence and restoration.
+- Review clarification: persisted project references require an exact ID match even though interactive `get_project` accepts ID or slug — deleted references must fail closed rather than resolve another project's slug.
+
 ## 7. Risks and notes for implementers
 
 - **T2 (stand-in) is the long pole.** mautrix may call endpoints that aren't listed here. Run the smoke test, read the gateway log for 404s, and add them. Never weaken the adapter to fit the stand-in.

@@ -42,6 +42,14 @@ approval:
     second_one: "{count} saniye"
     second_other: "{count} saniye"
 gateway:
+  project:
+    error:
+      no_identity: "Proje yönlendirmesi alıcı botu belirleyemedi. Lütfen mesajınızı yeniden gönderin."
+      missing: "{project} projesi artık yok. Başka bir proje bağlayın ve yeni bir konuşma başlatın."
+      archived: "{project} projesi arşivlenmiş. Geri yükleyin veya başka bir projeyle yeni bir konuşma başlatın."
+      no_path: "{project} projesinin birincil klasörü yok. Devam etmeden önce ayarlayın."
+      path_missing: "{project} projesinin klasörü kullanılamıyor: {path}. Devam etmeden önce geri yükleyin."
+      backend: "Proje yönlendirmesi yerel terminal arka ucunu gerektirir; geçerli arka uç: {backend}."
   approval_expired: "⚠️ Onay süresi doldu (ajan artık beklemiyor). Ajanın tekrar denemesini isteyin."
   draining: "⏳ Yeniden başlatmadan önce {count} aktif ajan bekleniyor..."
   goal_cleared: "✓ Hedef temizlendi."

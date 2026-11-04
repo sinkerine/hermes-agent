@@ -45,6 +45,14 @@ approval:
     second_other: "{count} seconds"
 
 gateway:
+  project:
+    error:
+      no_identity: "Project routing could not identify the receiving bot. Please resend your message."
+      missing: "Project {project} no longer exists. Bind another project and start a new conversation."
+      archived: "Project {project} is archived. Restore it or start a new conversation with another project."
+      no_path: "Project {project} has no primary folder. Set its primary folder before continuing."
+      path_missing: "The folder for project {project} is unavailable: {path}. Restore it before continuing."
+      backend: "Project routing requires the local terminal backend; the current backend is {backend}."
   approval_expired: "⚠️ Approval expired (agent is no longer waiting). Ask the agent to try again."
   draining: "⏳ Draining {count} active agent(s) before restart..."
   goal_cleared: "✓ Goal cleared."

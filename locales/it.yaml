@@ -42,6 +42,14 @@ approval:
     second_one: "{count} secondo"
     second_other: "{count} secondi"
 gateway:
+  project:
+    error:
+      no_identity: "Impossibile identificare il bot ricevente per instradare il progetto. Invia di nuovo il messaggio."
+      missing: "Il progetto {project} non esiste più. Associa un altro progetto e avvia una nuova conversazione."
+      archived: "Il progetto {project} è archiviato. Ripristinalo o avvia una nuova conversazione con un altro progetto."
+      no_path: "Il progetto {project} non ha una cartella principale. Impostala prima di continuare."
+      path_missing: "La cartella del progetto {project} non è disponibile: {path}. Ripristinala prima di continuare."
+      backend: "L’instradamento dei progetti richiede il backend di terminale locale; quello attuale è {backend}."
   approval_expired: "⚠️ Approvazione scaduta (l'agente non è più in attesa). Chiedi all'agente di riprovare."
   draining: "⏳ Attendo il completamento di {count} agente/i attivo/i prima di riavviare..."
   goal_cleared: "✓ Obiettivo cancellato."

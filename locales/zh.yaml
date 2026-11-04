@@ -42,6 +42,14 @@ approval:
     second_one: "{count} 秒"
     second_other: "{count} 秒"
 gateway:
+  project:
+    error:
+      no_identity: "项目路由无法识别接收消息的机器人。请重新发送消息。"
+      missing: "项目 {project} 已不存在。请绑定其他项目并开始新对话。"
+      archived: "项目 {project} 已归档。请恢复项目，或使用其他项目开始新对话。"
+      no_path: "项目 {project} 没有主文件夹。请设置后再继续。"
+      path_missing: "项目 {project} 的文件夹不可用：{path}。请恢复后再继续。"
+      backend: "项目路由需要本地终端后端；当前后端为 {backend}。"
   approval_expired: "⚠️ 批准已过期（代理不再等待）。请让代理重试。"
   draining: "⏳ 正在等待 {count} 个活跃代理结束后重启..."
   goal_cleared: "✓ 目标已清除。"

@@ -42,6 +42,14 @@ approval:
     second_one: "{count} sekonde"
     second_other: "{count} sekondes"
 gateway:
+  project:
+    error:
+      no_identity: "Projekroetering kon nie die ontvangende bot identifiseer nie. Stuur jou boodskap weer."
+      missing: "Projek {project} bestaan nie meer nie. Bind ’n ander projek en begin ’n nuwe gesprek."
+      archived: "Projek {project} is geargiveer. Herstel dit of begin ’n nuwe gesprek met ’n ander projek."
+      no_path: "Projek {project} het geen primêre gids nie. Stel dit voordat jy voortgaan."
+      path_missing: "Die gids vir projek {project} is onbeskikbaar: {path}. Herstel dit voordat jy voortgaan."
+      backend: "Projekroetering vereis die plaaslike terminaalagterkant; die huidige agterkant is {backend}."
   approval_expired: "⚠️ Goedkeuring het verval (die agent wag nie meer nie). Vra die agent om weer te probeer."
   draining: "⏳ Wag vir {count} aktiewe agent(e) voor herbegin..."
   goal_cleared: "✓ Doelwit verwyder."

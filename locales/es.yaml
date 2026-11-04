@@ -42,6 +42,14 @@ approval:
     second_one: "{count} segundo"
     second_other: "{count} segundos"
 gateway:
+  project:
+    error:
+      no_identity: "No se pudo identificar el bot receptor para enrutar el proyecto. Vuelve a enviar el mensaje."
+      missing: "El proyecto {project} ya no existe. Vincula otro proyecto e inicia una conversación nueva."
+      archived: "El proyecto {project} está archivado. Restáuralo o inicia una conversación nueva con otro proyecto."
+      no_path: "El proyecto {project} no tiene carpeta principal. Configúrala antes de continuar."
+      path_missing: "La carpeta del proyecto {project} no está disponible: {path}. Restáurala antes de continuar."
+      backend: "El enrutamiento de proyectos requiere el backend de terminal local; el actual es {backend}."
   approval_expired: "⚠️ La aprobación ha caducado (el agente ya no está esperando). Pida al agente que lo intente de nuevo."
   draining: "⏳ Esperando a que terminen {count} agente(s) activo(s) antes de reiniciar..."
   goal_cleared: "✓ Objetivo eliminado."

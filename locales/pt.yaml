@@ -42,6 +42,14 @@ approval:
     second_one: "{count} segundo"
     second_other: "{count} segundos"
 gateway:
+  project:
+    error:
+      no_identity: "Não foi possível identificar o bot destinatário para encaminhar o projeto. Reenvie a mensagem."
+      missing: "O projeto {project} já não existe. Associe outro projeto e inicie uma nova conversa."
+      archived: "O projeto {project} está arquivado. Restaure-o ou inicie uma nova conversa com outro projeto."
+      no_path: "O projeto {project} não tem pasta principal. Configure-a antes de continuar."
+      path_missing: "A pasta do projeto {project} não está disponível: {path}. Restaure-a antes de continuar."
+      backend: "O encaminhamento de projetos exige o backend de terminal local; o atual é {backend}."
   approval_expired: "⚠️ A aprovação expirou (o agente já não está à espera). Peça ao agente para tentar novamente."
   draining: "⏳ A aguardar que {count} agente(s) ativo(s) terminem antes de reiniciar..."
   goal_cleared: "✓ Objetivo removido."

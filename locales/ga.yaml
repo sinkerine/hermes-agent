@@ -42,6 +42,14 @@ approval:
     second_one: "{count} soicind"
     second_other: "{count} soicind"
 gateway:
+  project:
+    error:
+      no_identity: "Níorbh fhéidir leis an ródú tionscadail an bota glactha a aithint. Seol do theachtaireacht arís."
+      missing: "Níl tionscadal {project} ann a thuilleadh. Ceangail tionscadal eile agus tosaigh comhrá nua."
+      archived: "Tá tionscadal {project} sa chartlann. Athchóirigh é nó tosaigh comhrá nua le tionscadal eile."
+      no_path: "Níl príomhfhillteán ag tionscadal {project}. Socraigh é sula leanann tú ar aghaidh."
+      path_missing: "Níl fillteán tionscadail {project} ar fáil: {path}. Athchóirigh é sula leanann tú ar aghaidh."
+      backend: "Teastaíonn inneall teirminéil áitiúil le haghaidh ródú tionscadail; is é {backend} an t-inneall reatha."
   approval_expired: "⚠️ Tá an cead imithe in éag (níl an gníomhaire ag fanacht níos mó). Iarr ar an ngníomhaire iarracht eile a dhéanamh."
   draining: "⏳ Ag fanacht le {count} gníomhaire(í) gníomhach roimh atosú..."
   goal_cleared: "✓ Sprioc glanta."

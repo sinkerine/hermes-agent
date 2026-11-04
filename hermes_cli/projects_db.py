@@ -51,6 +51,18 @@ CREATE TABLE IF NOT EXISTS project_folders (
 CREATE INDEX IF NOT EXISTS idx_project_folders_path
     ON project_folders(path);
 
+-- No FK: deleting a project must leave its room binding visible as a routing error.
+CREATE TABLE IF NOT EXISTS chat_project_bindings (
+    platform          TEXT NOT NULL,
+    transport_profile TEXT NOT NULL,
+    chat_id           TEXT NOT NULL,
+    project_id        TEXT NOT NULL,
+    bound_by          TEXT,
+    created_at        INTEGER NOT NULL,
+    updated_at        INTEGER NOT NULL,
+    PRIMARY KEY (platform, transport_profile, chat_id)
+);
+
 CREATE TABLE IF NOT EXISTS project_meta (
     key    TEXT PRIMARY KEY,
     value  TEXT
@@ -143,6 +155,62 @@ def connect_closing(db_path: Optional[Path] = None):
     finally:
         with contextlib.suppress(Exception):
             conn.close()
+
+
+@dataclass(frozen=True)
+class ChatBinding:
+    platform: str
+    transport_profile: str
+    chat_id: str
+    project_id: str
+    bound_by: Optional[str]
+    created_at: int
+    updated_at: int
+
+
+def get_chat_binding(
+    conn: sqlite3.Connection, *, platform: str, transport_profile: str, chat_id: str,
+) -> Optional[ChatBinding]:
+    row = conn.execute(
+        "SELECT * FROM chat_project_bindings WHERE platform = ? AND transport_profile = ? AND chat_id = ?",
+        (platform, transport_profile, chat_id),
+    ).fetchone()
+    return ChatBinding(**dict(row)) if row is not None else None
+
+
+def set_chat_binding(
+    conn: sqlite3.Connection, *, platform: str, transport_profile: str, chat_id: str,
+    project_id: str, bound_by: Optional[str] = None,
+) -> ChatBinding:
+    """Upsert a binding, retaining its creation time; reject unknown project IDs."""
+    now = _now()
+    with write_txn(conn):
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise ValueError(f"no such project: {project_id}")
+        conn.execute(
+            "INSERT INTO chat_project_bindings "
+            "(platform, transport_profile, chat_id, project_id, bound_by, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(platform, transport_profile, chat_id) DO UPDATE SET "
+            "project_id = excluded.project_id, bound_by = excluded.bound_by, updated_at = excluded.updated_at",
+            (platform, transport_profile, chat_id, project_id, bound_by, now, now),
+        )
+        row = conn.execute(
+            "SELECT * FROM chat_project_bindings WHERE platform = ? AND transport_profile = ? AND chat_id = ?",
+            (platform, transport_profile, chat_id),
+        ).fetchone()
+    return ChatBinding(**dict(row))
+
+
+def delete_chat_binding(
+    conn: sqlite3.Connection, *, platform: str, transport_profile: str, chat_id: str,
+) -> bool:
+    with write_txn(conn):
+        cursor = conn.execute(
+            "DELETE FROM chat_project_bindings WHERE platform = ? AND transport_profile = ? AND chat_id = ?",
+            (platform, transport_profile, chat_id),
+        )
+    return cursor.rowcount > 0
 
 
 @dataclass

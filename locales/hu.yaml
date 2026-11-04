@@ -42,6 +42,14 @@ approval:
     second_one: "{count} másodperc"
     second_other: "{count} másodperc"
 gateway:
+  project:
+    error:
+      no_identity: "A projektútválasztás nem tudta azonosítani a fogadó botot. Küldd el újra az üzenetet."
+      missing: "A(z) {project} projekt már nem létezik. Kapcsolj másik projektet, és kezdj új beszélgetést."
+      archived: "A(z) {project} projekt archiválva van. Állítsd vissza, vagy kezdj új beszélgetést másik projekttel."
+      no_path: "A(z) {project} projektnek nincs elsődleges mappája. Állítsd be a folytatás előtt."
+      path_missing: "A(z) {project} projekt mappája nem érhető el: {path}. Állítsd vissza a folytatás előtt."
+      backend: "A projektútválasztáshoz helyi terminálháttér szükséges; a jelenlegi: {backend}."
   approval_expired: "⚠️ A jóváhagyás lejárt (az ügynök már nem vár). Kérd meg az ügynököt, hogy próbálja újra."
   draining: "⏳ {count} aktív ügynök befejezésére várunk az újraindítás előtt..."
   goal_cleared: "✓ A cél törölve."

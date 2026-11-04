@@ -42,6 +42,14 @@ approval:
     second_one: "{count} Sekunde"
     second_other: "{count} Sekunden"
 gateway:
+  project:
+    error:
+      no_identity: "Die Projektzuordnung konnte den empfangenden Bot nicht identifizieren. Bitte sende die Nachricht erneut."
+      missing: "Projekt {project} existiert nicht mehr. Verknüpfe ein anderes Projekt und beginne eine neue Unterhaltung."
+      archived: "Projekt {project} ist archiviert. Stelle es wieder her oder beginne eine neue Unterhaltung mit einem anderen Projekt."
+      no_path: "Projekt {project} hat keinen primären Ordner. Lege ihn vor dem Fortfahren fest."
+      path_missing: "Der Ordner für Projekt {project} ist nicht verfügbar: {path}. Stelle ihn vor dem Fortfahren wieder her."
+      backend: "Die Projektzuordnung erfordert das lokale Terminal-Backend; aktuell ist {backend} eingestellt."
   approval_expired: "⚠️ Genehmigung abgelaufen (Agent wartet nicht mehr). Bitten Sie den Agenten, es erneut zu versuchen."
   draining: "⏳ Warte auf {count} aktive(n) Agent(en) vor dem Neustart..."
   goal_cleared: "✓ Ziel gelöscht."

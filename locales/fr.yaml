@@ -42,6 +42,14 @@ approval:
     second_one: "{count} seconde"
     second_other: "{count} secondes"
 gateway:
+  project:
+    error:
+      no_identity: "Le routage du projet ne peut pas identifier le bot destinataire. Veuillez renvoyer votre message."
+      missing: "Le projet {project} n’existe plus. Associez un autre projet et démarrez une nouvelle conversation."
+      archived: "Le projet {project} est archivé. Restaurez-le ou démarrez une nouvelle conversation avec un autre projet."
+      no_path: "Le projet {project} n’a pas de dossier principal. Définissez-le avant de continuer."
+      path_missing: "Le dossier du projet {project} est indisponible : {path}. Restaurez-le avant de continuer."
+      backend: "Le routage des projets nécessite le backend de terminal local ; le backend actuel est {backend}."
   approval_expired: "⚠️ Approbation expirée (l'agent n'attend plus). Demandez à l'agent de réessayer."
   draining: "⏳ Vidage de {count} agent(s) actif(s) avant redémarrage..."
   goal_cleared: "✓ Objectif effacé."
