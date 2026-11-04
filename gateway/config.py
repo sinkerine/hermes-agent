@@ -648,6 +648,7 @@ class GatewayConfig:
     streaming: StreamingConfig = field(default_factory=StreamingConfig)
     # Prune SessionEntry records older than this (a resumed chat gets a fresh session). 0 = off.
     session_store_max_age_days: int = 90
+    project_workspace_root: Optional[str] = None
     profile_routes: list = field(default_factory=list)  # gateway/profile_routing.py
 
     # Scalar fields serialized verbatim by ``to_dict`` (in output order).
@@ -700,6 +701,7 @@ class GatewayConfig:
             **{name: getattr(self, name) for name in self._SCALAR_DICT_FIELDS},
             "streaming": self.streaming.to_dict(),
             "session_store_max_age_days": self.session_store_max_age_days,
+            "project_routing": {"workspace_root": self.project_workspace_root or ""},
             "profile_routes": [
                 {k: v for k, v in asdict(r).items() if k != "user_id" or v is not None}
                 if is_dataclass(r) and not isinstance(r, type) else r
@@ -800,6 +802,7 @@ class GatewayConfig:
             streaming=StreamingConfig.from_dict(data.get("streaming", {})),
             session_store_max_age_days=session_store_max_age_days,
             profile_routes=parse_profile_routes(data.get("profile_routes") or []),
+            project_workspace_root=str(_coerce_dict(pick("project_routing")).get("workspace_root") or "").strip() or None,
         )
 
     def _extra_choice(self, platform: Optional[Platform], key: str, choices: set, default: str) -> Optional[str]:

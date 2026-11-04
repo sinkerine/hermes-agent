@@ -339,3 +339,9 @@ For each of these the CLI opens a three-choice modal: **Approve Once** (proceed 
 **Inline skip:** append `now`, `--yes`, or `-y` to bypass the modal for a single invocation — e.g. `/reset now`, `/new --yes my-session`, `/clear -y`, `/undo -y`. Useful when the modal doesn't render correctly on your terminal (see [issue #30768](https://github.com/NousResearch/hermes-agent/issues/30768) for native Windows PowerShell) or when scripting against the CLI.
 
 Set `approvals.destructive_slash_confirm: false` in `~/.hermes/config.yaml` to disable the prompts globally; set it back to `true` to re-enable. See [Security — Destructive slash command confirmation](../user-guide/security.md#dangerous-command-approval) for context.
+
+## `/project` (messaging gateway)
+
+`/project` or `/project info` shows the room binding and current conversation's project pin. `/project list` lists non-archived projects in the runtime profile. `/project bind <id|slug> [--force]` binds an existing project; `/project create <slug> [--name "Display"] [--force]` creates a workspace under the existing `gateway.project_routing.workspace_root` and binds it. `/project unbind` removes only the binding; `/project help` shows usage. Matrix also accepts `!project`.
+
+Mutations require admin access under the platform's slash policy. An unset admin list treats every allowed user as an admin in that scope; set explicit admin lists for shared bots. Rebinding needs `--force`; existing conversations keep their workspace until `/new` or a new thread. Unbinding deletes no files or transcripts. Routing requires the local terminal backend and sets cwd and context discovery; cwd is not a sandbox. See [Matrix project rooms](../user-guide/messaging/matrix.md#project-rooms) for configuration and thread behavior.

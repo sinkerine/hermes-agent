@@ -491,6 +491,10 @@ Trim an equal number of characters elsewhere in the root, compressing wording on
 - Verification limitation: the T3 broad gateway run had 52 failures reproduced against the committed baseline; the completed T3 affected-file selection passed 223 tests across 20 files. Full-feature verification must report remaining baseline failures explicitly.
 - Test environment: use `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh ...` for the PM-built dev/test/Matrix environment; the default runner's separate test environment omits the Matrix extra and skips Matrix tests. Call `MatrixDriver.arm_readiness()` before every gateway launch, including restart.
 
+- Ruling: forward `project_routing` through the existing gateway config-loader bridge and regenerate the desktop command registry — both are required by repository integration contracts — cost: two additional integration artifacts.
+- Ruling: enforce rebind force checks and project creation reuse atomically in short SQLite write transactions; store helpers join caller-owned transactions — concurrent Matrix threads share room/workspace state — cost: transaction ownership support in project-store APIs. Concurrent-handler and commit/rollback tests cover the change.
+- T4 verification limitation: the broad CLI regression run reported 108 failures and 161 errors, with reproduction evidence against committed base `4a4b22e0b4`; focused final verification passed 113 tests and all 14 checks. New non-English command messages currently use English fallback text with matching placeholders.
+
 ## 7. Risks and notes for implementers
 
 - **T2 (stand-in) is the long pole.** mautrix may call endpoints that aren't listed here. Run the smoke test, read the gateway log for 404s, and add them. Never weaken the adapter to fit the stand-in.
