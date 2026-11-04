@@ -161,6 +161,8 @@ def main():
     assert ACTION_KEY.endswith(".action") and SB.is_relative_to(ROOT)
     from validate_review import main as validate_review
     validate_review()
+    from validate_quality import main as validate_quality
+    validate_quality()
 
 
 if __name__ == "__main__":

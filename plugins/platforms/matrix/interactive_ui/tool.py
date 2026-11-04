@@ -13,7 +13,7 @@ PRESENT_UI_SCHEMA = {
         "After two errors answer in plain text. Hermes owns version/ui_id/revision/status; fields inside ui are ignored. "
         "To revise a card use its returned replace_ui_id; status active/expired/superseded is only for revisions. "
         "UI: root references a node id; nodes is a flat array, all nodes reachable, ids unique. state maps binding keys "
-        "to JSON values. Nodes: stack(children,direction vertical|horizontal,gap); heading(text,level 1-3); text(text); "
+        "to JSON values. Nodes: stack(children,direction vertical|horizontal,gap? none|sm|md|lg); heading(text,level 1-3); text(text); "
         "rich_text(text,html optional sanitized); divider; badge(text,tone); key_value(items[{label,value}]); card(children,title?); "
         "list(items[{text,secondary?}],ordered); image(alt,mimetype,url mxc:// or file encrypted attachment, or upload absolute local "
         "PNG/JPEG/GIF/WebP path; no remote image fetch); link(label,url HTTPS); button(label,action); "

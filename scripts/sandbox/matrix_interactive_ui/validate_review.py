@@ -76,6 +76,28 @@ def element_config_checks(directory):
         assert read_json(web / "config.json")["features"]["feature_interactive_ui"] == "labs"
 
 
+def proc_state_checks():
+    pid = os.getpid()
+    stat = Path(f"/proc/{pid}/stat")
+    for exception in (FileNotFoundError("vanished"), ProcessLookupError("vanished"),
+                      PermissionError("denied"), OSError("unexpected read failure")):
+        def disappearing_read(path, *, encoding):
+            assert path == stat and encoding == "utf-8-sig"
+            raise exception
+        with patch.object(Path, "read_text", autospec=True, side_effect=disappearing_read) as read:
+            if isinstance(exception, (FileNotFoundError, ProcessLookupError)):
+                assert proc_state(pid) is None
+            else:
+                try:
+                    proc_state(pid)
+                except OSError as caught:
+                    assert caught is exception
+                else:
+                    raise AssertionError("Unexpected /proc read error was swallowed")
+            read.assert_called_once_with(stat, encoding="utf-8-sig")
+    assert proc_state(pid)["state"] != "Z"
+
+
 def descendant_command(marker):
     # The command leader exits; its child ignores TERM and stays in the owned group.
     code = ("import os,signal,sys,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);"
@@ -121,6 +143,9 @@ def lifecycle_checks(directory):
         stop_receipt(receipt, lifecycle.OWNER, grace=0.1)
         child.wait(timeout=5)
         assert not group_members(child.pid) and not receipt.exists()
+        for pid in (child.pid, descendant):
+            state = proc_state(pid)
+            assert state is None or state["state"] == "Z"
     finally:
         stop_receipt(receipt, lifecycle.OWNER, grace=0.1)
         child.wait(timeout=5)
@@ -208,7 +233,7 @@ def evaluator_failure_check(exception):
     assert row["status"] == "failed" and row["requests"] == 1
     # Exercise the real report writer after transport failure, without an HTTP listener.
     mode = f"offline-transport-check-{type(exception).__name__}"
-    with patch.object(evaluate.argparse.ArgumentParser, "parse_args", return_value=type("Args", (), {"mode": mode})()), \
+    with patch.object(evaluate.argparse.ArgumentParser, "parse_args", return_value=type("Args", (), {"mode": mode, "cases": None})()), \
             patch.object(evaluate, "read_json", return_value={"mode": mode}), \
             patch.object(evaluate.Path, "exists", return_value=True), \
             patch.object(evaluate, "request", failure):
@@ -216,7 +241,7 @@ def evaluator_failure_check(exception):
             evaluate.main()
         except AssertionError:
             pass  # Forced-invalid gate must fail after saving all failed-case receipts.
-    report = read_json(SB / f"evidence/{mode}-eval.json")
+    report = read_json(max((SB / "evidence").glob(f"{mode}-eval-*.json"), key=lambda path: path.stat().st_mtime_ns))
     assert len(report["failed_cases"]) == len(report["cases"]) == 9
     assert all(case["status"] == "failed" and case["requests"] == 1 for case in report["cases"])
     for case in [row, *report["cases"]]:
@@ -242,6 +267,7 @@ def main():
         directory = Path(temporary)
         environment_checks(directory)
         element_config_checks(directory)
+        proc_state_checks()
         lifecycle_checks(directory)
         signal_checks(directory)
         replay_checks(directory)
@@ -249,6 +275,7 @@ def main():
     write_json(SB / "evidence/offline-review.json", {
         "status": "passed", "checks": ["command/service environment sentinels and cache retention",
         "Element config regeneration exposes device-toggleable Labs without starting services",
+        "disappearing /proc reads and propagation of other read errors",
         "surviving descendant and PID reuse refusal", "timeout cleanup", "SIGINT/SIGTERM cleanup",
         "store-verified revision-zero export probes and identity refusal", "evaluator timeout/failure receipt"],
         "synthetic_failed_case": failure,

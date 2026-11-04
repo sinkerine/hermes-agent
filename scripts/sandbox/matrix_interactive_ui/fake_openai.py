@@ -1,4 +1,4 @@
-"""OpenAI chat-completions fixture server or explicit <=30-request live Magpie proxy."""
+"""OpenAI fixture server or live Magpie proxy (default 30, explicitly bounded at 42)."""
 
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -132,11 +132,32 @@ def load_magpie_key():
     return key
 
 
-def reserve_live():
+def live_request_limit(value):
+    limit = int(value)
+    if not 1 <= limit <= 42:
+        raise argparse.ArgumentTypeError("Live request limit must be between 1 and 42")
+    return limit
+
+
+def configure_live_budget(limit=None):
+    """Persist explicit authorization without resetting reservations or prior authorization."""
+    assert limit is None or (type(limit) is int and 1 <= limit <= 42)
     path = SB / "evidence/live-budget.json"
     with LOCK:
-        ledger = read_json(path) if path.exists() else {"limit": 30, "reserved_requests": 0}
-        if ledger["reserved_requests"] >= 30:
+        ledger = read_json(path) if path.exists() else {"limit": limit or 30, "reserved_requests": 0}
+        assert type(ledger["limit"]) is int and 1 <= ledger["limit"] <= 42
+        assert type(ledger["reserved_requests"]) is int and ledger["reserved_requests"] >= 0
+        if limit is not None:
+            ledger["limit"] = max(ledger["limit"], limit)
+        write_json(path, ledger)
+
+
+def reserve_live(limit=30):
+    assert type(limit) is int and 1 <= limit <= 42
+    path = SB / "evidence/live-budget.json"
+    with LOCK:
+        ledger = read_json(path)
+        if ledger["reserved_requests"] >= min(limit, ledger["limit"]):
             return None
         ledger["reserved_requests"] += 1
         write_json(path, ledger)
@@ -190,9 +211,9 @@ class Handler(BaseHTTPRequestHandler):
                              "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}})
 
     def forward_live(self, body):
-        index = reserve_live()
+        index = reserve_live(self.server.live_request_limit)
         if index is None:
-            self.send_json(429, {"error": {"message": "Sandbox's persistent 30-request limit reached"}})
+            self.send_json(429, {"error": {"message": "Sandbox's persistent live request limit reached"}})
             return
         body["model"] = "gpt-6.1-sol"
         req = urllib.request.Request(MAGPIE + "/chat/completions", data=json.dumps(body).encode(), headers={
@@ -212,10 +233,17 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true")
+    parser.add_argument("--live-request-limit", type=live_request_limit,
+                        help="Authorized total cap across restarts (1..42, default 30)")
     args = parser.parse_args()
+    if args.live_request_limit is not None and not args.live:
+        parser.error("--live-request-limit requires --live")
     # One listener with SO_REUSEPORT disabled prevents concurrent budget owners.
     server = ThreadingHTTPServer(("127.0.0.1", 18082), Handler)
     server.live = args.live
+    server.live_request_limit = args.live_request_limit or 30
+    if args.live:
+        configure_live_budget(args.live_request_limit)
     server.api_key = load_magpie_key() if args.live else None
     server.serve_forever(poll_interval=0.25)
 

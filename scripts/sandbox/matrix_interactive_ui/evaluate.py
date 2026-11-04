@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import time
+import uuid
 
 
 from common import ROOT, SB, entrypoint, read_json, request, write_json
@@ -74,23 +75,32 @@ def validate_call(call, row):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("deterministic", "live"), required=True)
+    parser.add_argument("--case", action="append", dest="cases", help="Evaluate only this case id; repeat to select more")
     args = parser.parse_args()
+    cases = yaml.safe_load(Path(__file__).with_name("eval_prompts.yaml").read_text(encoding="utf-8-sig"))
+    if args.cases:
+        unknown = set(args.cases) - {case["id"] for case in cases}
+        if unknown:
+            parser.error("Unknown case id: " + ", ".join(sorted(unknown)))
+        cases = [case for case in cases if case["id"] in args.cases]
     receipt = SB / "run/provider.json"
     assert receipt.exists(), "Start owned provider with up.sh first"
     assert read_json(SB / "run/provider-mode.json")["mode"] == args.mode, "Provider mode must match receipt"
     fixture("carousel")
-    cases = yaml.safe_load(Path(__file__).with_name("eval_prompts.yaml").read_text(encoding="utf-8-sig"))
     assert len(cases) * 3 <= 30
     report = {"mode": args.mode, "started_at": time.time(), "scope": "protocol quality only; E2E unverified", "cases": []}
-    output = SB / "evidence" / (args.mode + "-eval.json")
+    suffix = "-" + "-".join(case["id"] for case in cases) if args.cases else ""
+    output = SB / "evidence" / (args.mode + "-eval" + suffix + "-" + uuid.uuid4().hex + ".json")
     for case in cases:
         report["cases"].append(evaluate(case))
         write_json(output, report)
     report["failed_cases"] = [row["id"] for row in report["cases"] if row["status"] == "failed"]
-    report["forced_invalid_self_corrected"] = next(row["self_corrected"] for row in report["cases"] if row["id"] == "invalid")
+    invalid = next((row for row in report["cases"] if row["id"] == "invalid"), None)
+    report["forced_invalid_self_corrected"] = invalid["self_corrected"] if invalid else None
     write_json(output, report)
-    assert report["forced_invalid_self_corrected"], "Forced invalid did not self-correct"
-    print(f"Saved {args.mode} quality receipt; browser/Matrix delivery remains separately assessed.")
+    print(f"Saved {output.relative_to(SB)}; browser/Matrix delivery remains separately assessed.")
+    if invalid is not None:
+        assert report["forced_invalid_self_corrected"], "Forced invalid did not self-correct"
 
 
 if __name__ == "__main__":

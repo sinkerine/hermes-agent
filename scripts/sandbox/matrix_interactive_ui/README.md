@@ -43,7 +43,9 @@ and a brief final response. Real catalog search, describe, bridge resolution and
 dispatch run against a synthetic protocol-only handler; these checks make no delivery claim.
 It also exercises harmless environment sentinels, sandbox cache propagation,
 leader-exit/surviving-descendant cleanup, PID-start-time refusal, command timeout, SIGINT/SIGTERM,
-synthetic store identity/revision checks, Element Labs config regeneration and evaluator transport failures. It starts only bounded
+synthetic store identity/revision checks, Element Labs config regeneration, evaluator transport failures,
+persistent budget migration/exhaustion across simulated restarts, explicit limit forwarding, targeted
+case selection and distinct evaluation receipts. It starts only bounded
 disposable local Python processes and creates synthetic stores under sandbox tmp; it never
 starts services or reads credentials. Results are saved to `evidence/offline-review.json`.
 
@@ -299,9 +301,13 @@ start live mode. Only this mode selectively reads the matching provider's `baseU
 `apiKey` from `~/.pi/agent/models.json`; the key stays in provider process memory and is never
 printed or copied to `.env`. A missing/ambiguous entry or unexpected endpoint fails closed.
 The gateway still sends only to the loopback proxy, which pins `gpt-6.1-sol`, strips inherited
-credentials, disables streaming and forwards at most **30 requests total**, across restarts,
-including browser turns, retries, auxiliary calls and the prompt evaluation. Reservations
-are persisted before forwarding; transport failures spend budget, retries cannot bypass it.
+credentials, disables streaming and defaults to at most **30 requests total**, across restarts,
+including browser turns, retries, auxiliary calls and the prompt evaluation. An operator may pass
+`--live-request-limit N` with an explicitly authorized total cap from 1 through 42. The ledger's
+`limit` retains the highest explicitly configured authorization; `reserved_requests` is never reset.
+Omitting the flag preserves an existing ledger limit and also enforces a runtime cap of 30, so an
+extension requires the explicit flag again after restart. Reservations are persisted before
+forwarding; transport failures spend budget, retries cannot bypass it.
 The budget ledger in evidence survives purge. To give the nine-prompt evaluation its full
 27-request allowance, run it before live browser prompts. Do not erase the ledger to evade
 the bound. If budget remains, spend it on the browser journey and report the resulting
@@ -315,7 +321,36 @@ scripts/sandbox/matrix_interactive_ui/up.sh --live
 python scripts/sandbox/matrix_interactive_ui/evaluate.py --mode live
 ```
 
-Receipts are `evidence/deterministic-eval.json`, `evidence/live-eval.json`,
+The first live evaluation exhausted all 30 reserved slots (nine TLS failures and 21 actual
+requests). Its forced-invalid case failed after `root: unknown_ref`, then `nodes[0].gap: bad_value`
+with an empty hint. The schema permits gap values `none`, `sm`, `md`, `lg`; schema-derived
+validation hints now describe enum and type constraints, and the tool catalog lists gap values.
+The user subsequently authorized **up to 12 additional requests, total persistent cap 42**.
+This authorization has not been spent by the offline implementation checks; the historical
+[verification report](../../../docs/features/matrix-ui-verification.md) remains a record of the
+failed first evaluation until actual new results are reviewed. No quality pass is implied.
+
+After parent review, the authorized targeted retry is:
+
+```bash
+set -e
+source scripts/sandbox/matrix_interactive_ui/env.sh
+scripts/sandbox/matrix_interactive_ui/up.sh --live --live-request-limit 42
+python scripts/sandbox/matrix_interactive_ui/evaluate.py --mode live --case invalid
+scripts/sandbox/matrix_interactive_ui/down.sh
+```
+
+`--case` may be repeated to select other named cases; invalid ids fail before requests.
+Each selected case still permits at most three requests. Every evaluation writes a new
+`evidence/<mode>-eval[-<case>...]-<unique-id>.json` receipt and prints its path, including on
+a failed forced-invalid gate. Runs without the invalid case record its correction criterion
+as null (not evaluated). Original `live-eval.json` and earlier failed receipts are retained.
+The 42-slot ledger covers all traffic while live mode runs; reserve remaining slots for
+review-directed retries only, and inspect the ledger between attempts. Starting live mode
+also starts the gateway, so avoid unrelated prompts during a targeted evaluation.
+
+Receipts include historical `evidence/deterministic-eval.json`, `evidence/live-eval.json`,
+new unique evaluation receipts,
 `evidence/deterministic-provider.jsonl`, `evidence/live-provider.jsonl`,
 `evidence/live-budget.json`, `evidence/replay-*.json`, `evidence/status-*.json`,
 `evidence/gateway.log`, `evidence/element-build.log`, `evidence/synapse.log`,

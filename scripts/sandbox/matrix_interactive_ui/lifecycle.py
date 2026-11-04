@@ -18,6 +18,7 @@ import uuid
 from common import ELEMENT_SHA, HOME, HS, ROOT, SB, SYNAPSE, entrypoint, private_write, read_json, request, write_json
 import hermes_yaml as yaml
 from processes import child_environment, launch, stop_receipt
+from fake_openai import live_request_limit
 
 LABEL = "org.hermes.matrix-ui-sandbox"
 OWNER = hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
@@ -213,9 +214,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("up", "down", "restart-gateway", "preflight", "configure-element"))
     parser.add_argument("--build-element", action="store_true")
-    parser.add_argument("--live", action="store_true", help="Actually access Magpie; at most 30 forwarded requests")
+    parser.add_argument("--live", action="store_true", help="Actually access Magpie; default total cap 30")
+    parser.add_argument("--live-request-limit", type=live_request_limit,
+                        help="Explicitly authorized total cap (1..42); requires up --live")
     parser.add_argument("--purge", action="store_true")
     args = parser.parse_args()
+    if args.live_request_limit is not None and not (args.command == "up" and args.live):
+        parser.error("--live-request-limit requires up --live")
     if args.command == "configure-element":
         configure_element()
         return
@@ -248,6 +253,8 @@ def main():
         provider = [sys.executable, str(HERE / "fake_openai.py")]
         if args.live:
             provider.append("--live")
+            if args.live_request_limit is not None:
+                provider.extend(["--live-request-limit", str(args.live_request_limit)])
         start("provider", provider)
         provider_ready()
         start("gateway", [sys.executable, "-m", "gateway.run"])

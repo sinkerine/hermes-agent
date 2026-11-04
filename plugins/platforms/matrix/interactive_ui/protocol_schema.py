@@ -148,13 +148,14 @@ def read_constraints(value, rule, path):
     if "not" in rule and satisfies(value, rule["not"], path):
         fail(path, "bad_value")
     if "const" in rule and not same(value, rule["const"]):
-        fail(path, rule.get("x-error", "bad_value"))
+        fail(path, rule.get("x-error", "bad_value"), f"Expected value: {js_json(rule['const'])}")
     if "enum" in rule and not any(same(value, option) for option in rule["enum"]):
-        fail(path, rule.get("x-error", "bad_value"))
+        fail(path, rule.get("x-error", "bad_value"), f"Expected one of: {js_json(rule['enum'])}")
     if "type" in rule:
         expected = rule["type"] if type(rule["type"]) is list else [rule["type"]]
         if not any(matches_type(value, t) for t in expected):
-            fail(path, "not_object" if rule["type"] == "object" else "bad_type")
+            fail(path, "not_object" if rule["type"] == "object" else "bad_type",
+                 "Expected type: " + " or ".join(expected))
 
 
 def read_string(value, rule, path):

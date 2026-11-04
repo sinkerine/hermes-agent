@@ -24,7 +24,7 @@ def proc_state(pid):
     try:
         fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8-sig").rsplit(")", 1)[1].split()
         return {"state": fields[0], "group": int(fields[2]), "session": int(fields[3]), "starttime": fields[19]}
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError):
         return None
 
 
