@@ -379,8 +379,8 @@ class PtyBridge:
         # the shell exits; neither killpg(shell) nor closing the master guarantees they exit.
         descendants = _descendants_outside_group(self._proc.pid, pgid) if leader_was_alive else []
         grace = _helper_shutdown_grace()
-        helper_deadline = time.monotonic() + grace
         _signal_descendants(descendants, signal.SIGHUP)  # windows-footgun: ok — POSIX-only module
+        helper_deadline = time.monotonic() + grace
 
         # Signal the whole process group, not just the PTY leader: the dashboard TUI starts helper
         # children (e.g. the Python slash worker) and killing only the leader strands them.
@@ -394,6 +394,10 @@ class PtyBridge:
                     self._proc.kill(sig)
             except Exception:
                 pass
+            else:
+                if sig == signal.SIGHUP:  # windows-footgun: ok — POSIX-only module
+                    # Dispatch itself can stall; helpers cannot save before HUP is delivered.
+                    helper_deadline = time.monotonic() + grace
             # Escalation hits helpers too: a delayed leader must not shorten their SIGHUP save.
             deadline = helper_deadline if sig == signal.SIGHUP else time.monotonic() + 0.5  # windows-footgun: ok — POSIX-only module
             while self._proc.isalive() and time.monotonic() < deadline:

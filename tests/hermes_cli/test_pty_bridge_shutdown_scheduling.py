@@ -5,6 +5,7 @@ import re
 import shlex
 import signal
 import sys
+import threading
 
 import psutil
 import pytest
@@ -72,3 +73,70 @@ def test_close_ends_foreground_job_in_its_own_process_group():
             except psutil.NoSuchProcess:
                 pass
         bridge.close()
+
+
+@pytest.mark.platforms("posix")
+@pytest.mark.live_system_guard_bypass
+@pytest.mark.parametrize("stop_leader", [False, True])
+def test_close_preserves_helper_grace_after_delayed_hup_dispatch(tmp_path, monkeypatch, stop_leader):
+    """Time spent waiting to dispatch HUP must not consume the helper's save grace."""
+    from hermes_cli import pty_bridge
+    from tests.hermes_cli.test_pty_bridge import _read_until
+
+    marker, handling = tmp_path / "saved", tmp_path / "handling"
+    script = tmp_path / "helper.sh"
+    script.write_text(
+        f"trap 'trap \"\" HUP; echo handling > {shlex.quote(str(handling))}; "
+        f"sleep 0.6; echo ok > {shlex.quote(str(marker))}; exit 0' HUP\n"
+        "echo armed\nwhile :; do sleep 0.05; done\n"
+    )
+    bridge = pty_bridge.PtyBridge.spawn(
+        ["/bin/sh", "-c", f"/bin/sh {shlex.quote(str(script))} & exec sleep 60"]
+    )
+    entered, release = threading.Event(), threading.Event()
+    real_killpg = os.killpg
+    errors = []
+    worker = None
+    descendants = []
+
+    def dispatch(pgid, sig):
+        if pgid == bridge.pid and sig == signal.SIGHUP:
+            entered.set()
+            assert release.wait(10), "HUP dispatch barrier was not released"
+        return real_killpg(pgid, sig)
+
+    def close():
+        try:
+            bridge.close()
+        except BaseException as exc:
+            errors.append(exc)
+
+    try:
+        assert b"armed" in _read_until(bridge, b"armed")
+        descendants = psutil.Process(bridge.pid).children(recursive=True)
+        if stop_leader:
+            os.kill(bridge.pid, signal.SIGSTOP)
+            wait_until(lambda: psutil.Process(bridge.pid).status() == psutil.STATUS_STOPPED,
+                       what="PTY leader stopped before delayed dispatch")
+        monkeypatch.setattr(os, "killpg", dispatch)
+        worker = threading.Thread(target=close)
+        worker.start()
+        assert entered.wait(10), "close did not reach HUP dispatch"
+        # Consume the existing grace BEFORE delivery, without relying on CPU contention.
+        assert not release.wait(pty_bridge._helper_shutdown_grace())
+        release.set()
+        worker.join(10)
+        assert not worker.is_alive(), "PTY close did not finish"
+        assert not errors
+        assert handling.read_text().strip() == "handling"
+        assert marker.read_text().strip() == "ok"
+    finally:
+        release.set()
+        if worker is not None:
+            worker.join(10)
+        bridge.close()
+        for child in descendants:
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
