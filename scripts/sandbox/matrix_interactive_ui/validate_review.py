@@ -13,7 +13,7 @@ import tempfile
 import time
 from unittest.mock import patch
 
-from common import ACTION_KEY, SB, read_json, write_json
+from common import ACTION_KEY, ELEMENT_SHA, HS, SB, read_json, write_json
 import evaluate
 import lifecycle
 from processes import group_members, launch, proc_state, stop_receipt
@@ -52,6 +52,28 @@ def environment_checks(directory):
                 assert not set(excluded).intersection(read_json(output))
             finally:
                 lifecycle.stop("sentinel")
+
+
+def element_config_checks(directory):
+    source = directory / "element-src"
+    web = source / "apps/web/webapp"
+    web.mkdir(parents=True)
+    (source / ".sandbox-commit").write_text(ELEMENT_SHA, encoding="utf-8")
+    (web / "index.html").write_text("disposable offline build", encoding="utf-8")
+    # Exercise the production harness config writer against a disposable build, without a listener.
+    with patch.object(lifecycle, "SB", directory), patch.object(lifecycle, "start") as start:
+        assert lifecycle.configure_element() == web
+        config = read_json(web / "config.json")
+        assert config["show_labs_settings"] is True
+        assert config["features"] == {"feature_interactive_ui": "labs"}
+        assert config["default_server_config"]["m.homeserver"]["base_url"] == HS
+        assert config["disable_custom_urls"] is True
+        start.assert_not_called()
+        # Regeneration must remove an earlier forced-enabled override.
+        config["features"]["feature_interactive_ui"] = True
+        write_json(web / "config.json", config)
+        lifecycle.configure_element()
+        assert read_json(web / "config.json")["features"]["feature_interactive_ui"] == "labs"
 
 
 def descendant_command(marker):
@@ -219,14 +241,16 @@ def main():
     with tempfile.TemporaryDirectory(prefix="review-", dir=SB / "tmp") as temporary:
         directory = Path(temporary)
         environment_checks(directory)
+        element_config_checks(directory)
         lifecycle_checks(directory)
         signal_checks(directory)
         replay_checks(directory)
         failure = evaluator_checks()
     write_json(SB / "evidence/offline-review.json", {
         "status": "passed", "checks": ["command/service environment sentinels and cache retention",
+        "Element config regeneration exposes device-toggleable Labs without starting services",
         "surviving descendant and PID reuse refusal", "timeout cleanup", "SIGINT/SIGTERM cleanup",
         "store-verified revision-zero export probes and identity refusal", "evaluator timeout/failure receipt"],
         "synthetic_failed_case": failure,
     })
-    print("Offline review: environment, descendant/timeout/signals, replay identity/revisions, evaluator failure passed.")
+    print("Offline review: environment, Element Labs config, descendant/timeout/signals, replay identity/revisions, evaluator failure passed.")

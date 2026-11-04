@@ -28,12 +28,84 @@ def selected_case(text):
     return "graph-en"
 
 
+def tool_reply(name, arguments, case):
+    message = {"role": "assistant", "content": None, "tool_calls": [{
+        "id": "call_" + secrets.token_hex(8), "type": "function",
+        "function": {"name": name, "arguments": json.dumps(arguments, ensure_ascii=False)},
+    }]}
+    return message, "tool_calls", case
+
+
+def completed_calls(messages):
+    """Pair results by ID: catalog lookups must not consume the UI correction attempt."""
+    pending = {}
+    completed = []
+    for message in messages:
+        if message.get("role") == "assistant":
+            for call in message.get("tool_calls", []):
+                pending[call["id"]] = call["function"]
+        elif message.get("role") == "tool" and message.get("tool_call_id") in pending:
+            function = pending.pop(message["tool_call_id"])
+            completed.append((function["name"], json.loads(function["arguments"]),
+                              json.loads(message["content"])))
+    return completed
+
+
+def schema_shape(schema):
+    """Keep structural schema fields only; never descriptions, defaults or example values."""
+    shape = {key: schema[key] for key in ("type", "required") if key in schema}
+    if "properties" in schema:
+        shape["properties"] = {name: schema_shape(value) for name, value in schema["properties"].items()}
+    if isinstance(schema.get("items"), dict):
+        shape["items"] = schema_shape(schema["items"])
+    return shape
+
+
+def request_surface(body):
+    return [{"name": tool["function"]["name"],
+             "parameters": schema_shape(tool["function"].get("parameters", {}))}
+            for tool in body.get("tools", []) if tool.get("type") == "function"]
+
+
+def card_completion(body, trailing, case):
+    names = {tool["function"]["name"] for tool in body.get("tools", []) if tool.get("type") == "function"}
+    completed = completed_calls(trailing)
+    direct = "present_ui" in names
+    if not direct:
+        if not {"tool_search", "tool_describe", "tool_call"}.issubset(names):
+            return {"role": "assistant", "content": "The card tool is unavailable."}, "stop", case + ":unavailable"
+        searches = [result for name, _, result in completed if name == "tool_search"]
+        if not searches:
+            return tool_reply("tool_search", {"queries": ["present_ui"]}, case + ":search")
+        if "present_ui" not in searches[-1].get("tools", {}):
+            return {"role": "assistant", "content": "The card tool was not found."}, "stop", case + ":search-failed"
+        descriptions = [result for name, _, result in completed if name == "tool_describe"]
+        if not descriptions:
+            return tool_reply("tool_describe", {"names": ["present_ui"]}, case + ":describe")
+        if not descriptions[-1].get("tools", {}).get("present_ui", {}).get("parameters"):
+            return {"role": "assistant", "content": "The card schema is unavailable."}, "stop", case + ":describe-failed"
+    results = [result for name, args, result in completed if name == "present_ui" or (
+        name == "tool_call" and any(call.get("name") == "present_ui" for call in args.get("calls", [])))]
+    if results:
+        if results[-1].get("ok") is True:
+            return {"role": "assistant", "content": "The card is above."}, "stop", case + ":text"
+        if len(results) >= 2 or "interactive_ui: root: unknown_ref:" not in str(results[-1].get("error", "")):
+            return {"role": "assistant", "content": "Unable to present the card."}, "stop", case + ":failed"
+    ui = fixture(case)
+    # Every card request exercises the real validator's path-specific error and one correction.
+    if not results:
+        ui["root"] = "missing_root"
+    args = {"ui": ui}
+    name = "present_ui" if direct else "tool_call"
+    arguments = args if direct else {"calls": [{"name": "present_ui", "arguments": args}]}
+    return tool_reply(name, arguments, case + (":corrected" if results else ":invalid"))
+
+
 def completion(body):
     messages = body.get("messages", [])
     last_user = max((i for i, item in enumerate(messages) if item.get("role") == "user"), default=-1)
     text = str(messages[last_user].get("content", "")) if last_user >= 0 else ""
     trailing = messages[last_user + 1:]
-    results = [item for item in trailing if item.get("role") == "tool"]
     case = selected_case(text)
     if "[Interactive UI action]" in text:
         # Carry the selected values into the visible answer so the operator can verify routing.
@@ -42,18 +114,7 @@ def completion(body):
     if case in ("fact", "joke"):
         content = {"fact": "Paris is the capital of France.", "joke": "Why did the byte cross the bus? To get to the other side."}[case]
         return {"role": "assistant", "content": content}, "stop", case
-    if len(results) >= 2:
-        return {"role": "assistant", "content": "The card is above."}, "stop", case + ":text"
-    ui = fixture(case)
-    # Every card request exercises the real validator's path-specific error and one correction.
-    if not results:
-        ui["root"] = "missing_root"
-    args = json.dumps({"ui": ui}, ensure_ascii=False)
-    message = {"role": "assistant", "content": None, "tool_calls": [{
-        "id": "call_" + secrets.token_hex(8), "type": "function",
-        "function": {"name": "present_ui", "arguments": args},
-    }]}
-    return message, "tool_calls", case + (":invalid" if not results else ":corrected")
+    return card_completion(body, trailing, case)
 
 
 def load_magpie_key():
@@ -121,7 +182,8 @@ class Handler(BaseHTTPRequestHandler):
             self.forward_live(body)
             return
         message, reason, case = completion(body)
-        receipt("deterministic", {"case": case, "tool_calls": len(message.get("tool_calls", []))})
+        receipt("deterministic", {"case": case, "tool_calls": len(message.get("tool_calls", [])),
+                                  "request_tools": request_surface(body)})
         self.send_json(200, {"id": "chatcmpl-" + secrets.token_hex(8), "object": "chat.completion",
                              "created": int(time.time()), "model": body.get("model", "gpt-6.1-sol"),
                              "choices": [{"index": 0, "message": message, "finish_reason": reason}],

@@ -35,9 +35,15 @@ docker image inspect matrixdotorg/synapse@sha256:1909bcc07d4180945464712a7f4d4bb
 git -C /home/sinkerine/dev/element-web cat-file -e bcb080171cb312feef37e63007c7ca8cc0a8b77f^{commit}
 ```
 
-`validate.py` also exercises harmless environment sentinels, sandbox cache propagation,
+`validate.py` runs both direct `present_ui` and deferred
+`tool_search({queries:["present_ui"]})` → `tool_describe({names:["present_ui"]})` →
+`tool_call({calls:[{name:"present_ui",arguments:{ui:...}}]})` sequences. Each card gets an
+invalid root, the strict parser's `interactive_ui: root: unknown_ref` error, one correction,
+and a brief final response. Real catalog search, describe, bridge resolution and registry
+dispatch run against a synthetic protocol-only handler; these checks make no delivery claim.
+It also exercises harmless environment sentinels, sandbox cache propagation,
 leader-exit/surviving-descendant cleanup, PID-start-time refusal, command timeout, SIGINT/SIGTERM,
-synthetic store identity/revision checks and evaluator transport failures. It starts only bounded
+synthetic store identity/revision checks, Element Labs config regeneration and evaluator transport failures. It starts only bounded
 disposable local Python processes and creates synthetic stores under sandbox tmp; it never
 starts services or reads credentials. Results are saved to `evidence/offline-review.json`.
 
@@ -51,8 +57,21 @@ The Synapse image is pinned to the locally available digest, rather than `latest
 
 `pnpm` must already be available. Building can require network access and take several
 minutes. The harness archives Element commit `bcb080171cb312feef37e63007c7ca8cc0a8b77f`
-from the reference checkout into `element-src`, then runs `pnpm install --frozen-lockfile
---store-dir "$SB/cache/pnpm-store"` there and `pnpm build` in its `apps/web` directory.
+from the reference checkout into `element-src`, then runs these commands there through
+`lifecycle.run` (sanitized environment, owned process groups, 1800-second deadline each):
+
+```bash
+pnpm install --frozen-lockfile --ignore-scripts --store-dir "$SB/cache/pnpm-store"
+pnpm --filter element-web rebuild @element-hq/element-call-component matrix-js-sdk
+pnpm --config.verifyDepsBeforeRun=false --filter element-web run build
+```
+
+The root postinstall invokes Desktop's `electron-builder install-app-deps`, which requires
+unneeded native compiler setup. Skipping install scripts avoids that hook; the explicit
+Web dependency rebuild restores the prepared Git packages (especially Element Call's
+`dist/`). Nx then builds Web and its workspace dependencies. Disabling pnpm's automatic
+dependency verification prevents it from reinstalling with the Desktop hook enabled.
+Do not omit the rebuild: an ignored-scripts install alone leaves Element Call unbuilt.
 It does not reuse the reference checkout's old `webapp` or dependencies. The lockfile and
 transitive dependencies belong to that pinned external project; Hermes dependency files
 are unchanged. Build output and caches stay inside the sandbox. A failed/incomplete build
@@ -83,8 +102,13 @@ The selected platform toolset deliberately restricts this experiment to `present
 Bootstrap, install/build commands and services share the same allowlisted child environment.
 It retains sandbox Node/Corepack/pnpm/cache paths and removes inherited credentials and execution
 controls such as `NODE_OPTIONS`, `PYTHONPATH`, `BASH_ENV` and npm script-shell overrides.
-The fake provider returns actual OpenAI `tool_calls` and schema-valid fixture inputs;
-the real producer validates, uploads media, encrypts, sends and stores each card.
+The fake provider follows the tools in each actual OpenAI request: directly listed `present_ui`
+is called directly; a deferred surface is searched and described before invoking the `tool_call`
+envelope. Catalog results are paired to call IDs and do not consume card correction attempts.
+After the deliberate invalid-root error it sends the corrected fixture through the same surface;
+the real producer validates, uploads media, encrypts, sends and stores each card. No toolset is
+changed mid-turn. Deterministic provider receipts retain only tool names and parameter schema
+structure (type, required, properties, items), excluding prompts, values, descriptions and headers.
 
 Do not print `accounts.json`, `.env`, recovery keys, nonces or decrypted action values into
 shared logs. For browser automation read only the selected disposable account fields in
@@ -92,7 +116,50 @@ memory and pass them directly to password/user input actions. Do not screenshot 
 or developer tools containing credentials. CLI/browser connectors are discovered by the
 parent at E2E time; no particular connector is assumed installed by this harness.
 
+Setup repair on this host used the sandbox-cached pnpm 12.11.2 directly. The existing
+`$SB/bin/pnpm` symlink points to
+`$SB/cache/corepack/v1/pnpm/12.11.2/bin/pnpm.mjs` (executable), bypassing Corepack's nested
+package-manager mismatch. Before invoking the harness here, after sourcing `env.sh`, use
+`export PATH="$SB/bin:$(dirname "$HERMES_PYTHON"):$PATH"`. No upstream source or lockfile
+changes are required. `evidence/element-build-recipe-result.json` records the validated
+commands; `evidence/element-build-provenance.json` records source and output hashes.
+
+The browser setup smoke used Playwright 1.64.0 already present at
+`$SB/element-src/node_modules/.pnpm/playwright@1.64.0/node_modules/playwright` with existing
+Nix-packaged Chrome:
+`/nix/store/dqzn64123p2qvidnx0wspr0z96rc407a-google-chrome-156.0.8078.79/bin/google-chrome-stable`.
+Launch from `cwd=$SB/tmp`, pass browser-local `TMPDIR=.` / `TMP=.` / `TEMP=.`, and put
+`userDataDir`, `XDG_CONFIG_HOME` and `XDG_DATA_HOME` under `$SB`. The relative temporary
+path avoids Chromium's 108-byte Unix socket path limit while keeping files inside the
+sandbox. Leave `HOME` unchanged and set `chromiumSandbox: true`. Run Node through
+`lifecycle.run` with an allowlisted environment; do not inherit provider credentials.
+`$SB/evidence/chromium-smoke.cjs` retains the exact successful launch and screenshot recipe;
+`evidence/chromium-smoke.json`, `evidence/chromium-smoke.log` and
+`evidence/screenshots/00-chromium-smoke.png` establish a 1280×900 static-page launch only.
+The downloaded Chromium 1208 had all libraries resolved from existing Nix paths in
+`evidence/chromium-libraries.json` but still exited with SIGTRAP; the packaged Chrome
+wrapper supplies a working library closure without host installation. This setup smoke
+does not establish Element rendering or any Matrix journey step.
+
 ## Browser journey and evidence
+
+Element config uses `features.feature_interactive_ui: "labs"` with `show_labs_settings: true`.
+At the pinned commit, `ConfigSettingsHandler.getValue` maps `"labs"` to no config override;
+`SettingsStore.settingIsOveriddenAtConfigLevel` locks device settings only for boolean config
+values. A config value of `true` forces the Labs switch on and disables it. Regenerate an
+existing build's config without starting or stopping any service:
+
+```bash
+set -e
+source scripts/sandbox/matrix_interactive_ui/env.sh
+python scripts/sandbox/matrix_interactive_ui/lifecycle.py configure-element
+```
+
+Reload Element to read the new config. In Settings → Labs, enable Interactive UI for Alice
+and disable it for Bob using each account's normal switch. These are separate device settings;
+keep both browser profiles under the sandbox and record the switch states in browser evidence.
+The offline config check validates generated configuration only; browser checks establish that
+the pinned Element exposes working switches.
 
 Navigate a browser capable of reaching this host's loopback to `http://127.0.0.1:18081`.
 Use separate browser profiles/contexts for Alice and Bob, retaining each sandbox context
@@ -107,8 +174,9 @@ another machine is a blocker until a loopback-preserving connection is available
    room settings and the encrypted event type. Save `evidence/screenshots/01-encrypted-dm.png`.
    Verify/trust only these disposable devices as needed. Save browser storage only inside `$SB`.
 2. Send `[case:graph-zh] 用知识图谱解释《风味的法则》里成分—机制—结果的关系，并允许按知识分支切换`.
-   The deterministic provider first calls `present_ui` with an invalid root, then corrects it
-   once after the real tool error, then replies briefly. Check one actual card, no visible
+   The deterministic provider searches/describes a deferred tool when required, calls
+   `present_ui` through the request's direct or bridge surface with an invalid root, corrects
+   it once after the real path-specific tool error, then replies briefly. Check one actual card, no visible
    fallback, heading, branch selector and layered graph. Capture
    `02-graph-zh-1280.png` at viewport 1280×900 and `02-graph-zh-360.png` at 360×800.
 3. Change branch and selected mechanism locally. Check no new Matrix event, provider request,

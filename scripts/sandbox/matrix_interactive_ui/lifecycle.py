@@ -141,18 +141,31 @@ def element(build):
         run(["tar", "-xf", str(archive), "-C", str(source)])
         archive.unlink()
         with (SB / "evidence/element-build.log").open("ab") as output:
-            run(["pnpm", "install", "--frozen-lockfile", "--store-dir", str(SB / "cache/pnpm-store")],
+            # Root postinstall builds Desktop native modules, which Web does not use.
+            run(["pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--store-dir", str(SB / "cache/pnpm-store")],
                 cwd=source, stdout=output, stderr=output, timeout=1800)
-            run(["pnpm", "build"], cwd=source / "apps/web", stdout=output, stderr=output, timeout=1800)
+            # Git dependencies need their prepared output even when workspace hooks are skipped.
+            run(["pnpm", "--filter", "element-web", "rebuild", "@element-hq/element-call-component", "matrix-js-sdk"],
+                cwd=source, stdout=output, stderr=output, timeout=1800)
+            # Avoid pnpm's automatic reinstall re-enabling that root postinstall.
+            run(["pnpm", "--config.verifyDepsBeforeRun=false", "--filter", "element-web", "run", "build"],
+                cwd=source, stdout=output, stderr=output, timeout=1800)
         private_write(source / ".sandbox-commit", ELEMENT_SHA)
+    web = configure_element()
+    start("element", [sys.executable, "-m", "http.server", "18081", "--bind", "127.0.0.1", "--directory", str(web)])
+
+
+def configure_element():
+    source = SB / "element-src"
     assert (source / ".sandbox-commit").read_text(encoding="utf-8-sig") == ELEMENT_SHA
     web = source / "apps/web/webapp"
     assert (web / "index.html").is_file()
     config = {"default_server_config": {"m.homeserver": {"base_url": HS, "server_name": "localhost"}},
               "disable_custom_urls": True, "show_labs_settings": True,
-              "features": {"feature_interactive_ui": True}, "brand": "Hermes disposable sandbox"}
+              # Pinned Element maps 'labs' to no config override, allowing device-level toggles.
+              "features": {"feature_interactive_ui": "labs"}, "brand": "Hermes disposable sandbox"}
     write_json(web / "config.json", config)
-    start("element", [sys.executable, "-m", "http.server", "18081", "--bind", "127.0.0.1", "--directory", str(web)])
+    return web
 
 
 def down(purge):
@@ -198,11 +211,14 @@ def provider_ready():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("up", "down", "restart-gateway", "preflight"))
+    parser.add_argument("command", choices=("up", "down", "restart-gateway", "preflight", "configure-element"))
     parser.add_argument("--build-element", action="store_true")
     parser.add_argument("--live", action="store_true", help="Actually access Magpie; at most 30 forwarded requests")
     parser.add_argument("--purge", action="store_true")
     args = parser.parse_args()
+    if args.command == "configure-element":
+        configure_element()
+        return
     if args.command == "down":
         down(args.purge)
         return
