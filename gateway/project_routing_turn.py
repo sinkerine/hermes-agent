@@ -47,8 +47,8 @@ async def apply_turn_project_pin(
                                exc.reason, source.platform.value, binding_chat_id(source))
                 return exc.user_message()
             if persist:
-                if not runner.session_store.set_session_metadata(
-                    session_key, PIN_METADATA_KEY, pin.to_dict(), expected_session_id=session_id,
+                if not runner.session_store.set_session_project_pin(
+                    session_key, pin.to_dict(), expected_session_id=session_id, clear_terminal_cwd=not history,
                 ):
                     raise SessionRouteChangedError("Session route changed during project resolution")
             else:

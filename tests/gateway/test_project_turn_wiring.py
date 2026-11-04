@@ -437,7 +437,7 @@ async def test_resolver_cannot_publish_into_reset_successor(routing, monkeypatch
                 finished.set()
 
     # Observe the worker itself: cancellation only unwinds the asyncio awaiter.
-    original_set = r.store.set_session_metadata
+    original_set = r.store.set_session_project_pin
 
     def publish(*args, **kwargs):
         try:
@@ -445,7 +445,7 @@ async def test_resolver_cannot_publish_into_reset_successor(routing, monkeypatch
         finally:
             finished.set()
 
-    monkeypatch.setattr(r.store, "set_session_metadata", publish)
+    monkeypatch.setattr(r.store, "set_session_project_pin", publish)
     task = asyncio.create_task(resolve())
     try:
         assert await asyncio.to_thread(started.wait, 10)
@@ -560,3 +560,81 @@ async def test_prepare_stamps_child_created_by_hygiene_after_project_validation(
     assert r.entry.session_id == "hygiene-child"
     assert project_pin_for_key(runner, r.entry.session_key).project_id == r.project
     assert db.get_session("hygiene-child")["cwd"] == str(r.folder)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("boundary", ["reset", "force_new"])
+async def test_project_boundary_drops_route_terminal_cwd_but_continuation_keeps_cd(routing, boundary):
+    from tools.terminal_tool import _resolve_command_cwd, clear_session_cwd, record_session_cwd
+    r = routing
+    key = r.entry.session_key
+
+    def cwd():
+        return _resolve_command_cwd(workdir=None, default_cwd=str(r.folder), session_key=key)
+
+    try:
+        with r.runner._profile_scope_for_source(r.source):
+            record_session_cwd(key, str(r.runtime))
+        await apply_turn_project_pin(r.runner, r.source, r.entry, [])
+        with r.runner._profile_scope_for_source(r.source):
+            assert cwd() == str(r.folder)
+            record_session_cwd(key, str(r.folder / "sources"))
+        await apply_turn_project_pin(r.runner, r.source, r.entry, [{"role": "user", "content": "continue"}])
+        with r.runner._profile_scope_for_source(r.source):
+            assert cwd() == str(r.folder / "sources")
+        if boundary == "reset":
+            successor = r.store.reset_session(key)
+        else:
+            successor = r.store.get_or_create_session(r.source, force_new=True)
+        await apply_turn_project_pin(r.runner, r.source, successor, [])
+        with r.runner._profile_scope_for_source(r.source):
+            assert cwd() == str(r.folder)
+            record_session_cwd(key, str(r.folder / "after-cd"))
+        db = r.store._db_for_key(key)
+        db.create_session("terminal-compression-child", "matrix", parent_session_id=successor.session_id)
+        child = r.store.switch_session(key, "terminal-compression-child")
+        await apply_turn_project_pin(r.runner, r.source, child, [])
+        with r.runner._profile_scope_for_source(r.source):
+            assert cwd() == str(r.folder / "after-cd")
+    finally:
+        with r.runner._profile_scope_for_source(r.source):
+            clear_session_cwd(key)
+
+
+@pytest.mark.asyncio
+async def test_published_old_pin_cannot_clear_successor_terminal_cwd(routing, monkeypatch):
+    from tools.terminal_tool import clear_session_cwd, get_session_cwd, record_session_cwd
+    r = routing
+    key = r.entry.session_key
+    published, release = Event(), Event()
+    original_update = r.store._update_entry
+
+    def pause_after_publication(*args, **kwargs):
+        result = original_update(*args, **kwargs)
+        assert result
+        published.set()
+        assert release.wait(10)
+        return result
+
+    monkeypatch.setattr(r.store, "_update_entry", pause_after_publication)
+    task = asyncio.create_task(apply_turn_project_pin(r.runner, r.source, r.entry, []))
+    try:
+        assert await asyncio.to_thread(published.wait, 10)
+        assert r.entry.metadata[PIN_METADATA_KEY]["project_id"] == r.project
+        successor = r.store.reset_session(key)
+        assert successor.session_id != r.entry.session_id
+        successor_cwd = str(r.folder / "successor-cd")
+        with r.runner._profile_scope_for_source(r.source):
+            record_session_cwd(key, successor_cwd)
+        release.set()
+        await task
+        with r.runner._profile_scope_for_source(r.source):
+            assert get_session_cwd(key) == successor_cwd
+        assert successor.metadata == {}
+    finally:
+        release.set()
+        try:
+            await task
+        finally:
+            with r.runner._profile_scope_for_source(r.source):
+                clear_session_cwd(key)

@@ -183,6 +183,22 @@ class SessionLifecycleMixin:
             entry.metadata[key] = value
         return self._update_entry(session_key, apply)
 
+    def set_session_project_pin(
+        self, session_key: str, pin: dict[str, Any], *, expected_session_id: str, clear_terminal_cwd: bool,
+    ) -> bool:
+        """Publish a project pin and retire initial terminal cwd before reset can replace its owner."""
+        from gateway.project_routing import PIN_METADATA_KEY
+        from tools.terminal_tool import clear_session_cwd
+
+        def apply(entry):
+            if entry.session_id != expected_session_id:
+                return False
+            entry.metadata[PIN_METADATA_KEY] = pin
+            if clear_terminal_cwd:
+                # Lifecycle -> terminal cwd lock only; the terminal cwd helpers never acquire lifecycle locks.
+                clear_session_cwd(session_key)
+        return self._update_entry(session_key, apply)
+
     def _update_all_entries_locked(self, mutate) -> int:
         """Apply ``mutate(entry) -> bool`` to every entry under ``_lock``; save once if any
         returned True. Returns the count that did."""
