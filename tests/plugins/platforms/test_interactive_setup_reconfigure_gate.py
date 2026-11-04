@@ -24,7 +24,7 @@ _WIZARDS = [
     ("plugins.platforms.google_chat.adapter", "GOOGLE_CHAT_SUBSCRIPTION_NAME"),
     ("plugins.platforms.irc.adapter", "IRC_SERVER"),
     ("plugins.platforms.line.adapter", "LINE_CHANNEL_ACCESS_TOKEN"),
-    ("plugins.platforms.matrix.adapter", "MATRIX_PASSWORD"),
+    ("plugins.platforms.matrix.setup", "MATRIX_PASSWORD"),
     ("plugins.platforms.mattermost.adapter", "MATTERMOST_TOKEN"),
     ("plugins.platforms.raft.adapter", "RAFT_PROFILE"),
     ("plugins.platforms.simplex.adapter", "SIMPLEX_WS_URL"),
