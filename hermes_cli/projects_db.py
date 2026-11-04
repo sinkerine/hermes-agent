@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -84,6 +85,8 @@ _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9\-_]{0,63}$")
 # Deterministic branch slug: lowercase, separators collapsed, capped.
 _BRANCH_SAFE_RE = re.compile(r"[^a-z0-9._-]+")
 _INITIALIZED_PATHS: set[str] = set()
+_CONNECT_LOCKS: dict[str, threading.RLock] = {}
+_CONNECT_LOCKS_GUARD = threading.Lock()
 # TEXT columns added to `projects` after v1; re-applied idempotently on every open so a legacy DB
 # upgrades in place.
 _OPTIONAL_PROJECT_COLUMNS = ("board_slug", "primary_path", "icon", "color")
@@ -142,7 +145,12 @@ def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
                 _add_column_if_missing(conn, "projects", col, f"{col} TEXT")
         _INITIALIZED_PATHS.add(resolved)
 
-    return open_db(path, db_label="projects.db", foreign_keys=True, initialize=_initialize)
+    with _CONNECT_LOCKS_GUARD:
+        setup_lock = _CONNECT_LOCKS.setdefault(resolved, threading.RLock())
+    # Concurrent journal upgrades can bypass SQLite's busy timeout. Guard WAL setup and the
+    # schema cache together, releasing before callers start any reads or write transactions.
+    with setup_lock:
+        return open_db(path, db_label="projects.db", foreign_keys=True, initialize=_initialize)
 
 
 @contextlib.contextmanager
