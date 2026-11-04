@@ -218,6 +218,8 @@ class InteractiveUiStore:
     def accept_action(self, ui_event_id: str, *, nonce: str, action_event_id: str, sender: str,
                       expected_revision: int, single_use_payload: dict[str, Any] | None) -> AcceptOutcome
     # AcceptOutcome = Literal["accepted", "duplicate", "stale", "inactive"]; one BEGIN IMMEDIATE transaction
+    # Missing record after duplicate checks: raises KeyError(ui_event_id); caller recovers/refuses without a turn.
+    # Malformed replacement identity/revision/status: ValueError, with no mutation; stale CAS returns False.
     def prune(self, *, older_than_days: int = 90) -> int
 
 # submission.py
@@ -742,3 +744,8 @@ is ever involved.
   Preserve shared adapter rendering; final sanitization and byte budgets still apply. T6 production wiring must
   use the new default or explicitly the T4 converter. Test missing-Markdown literal fidelity and custom-converter
   precedence, rather than detecting dependencies inside the builder and silently ignoring the supplied callable.
+- Ruling: `accept_action` raises `KeyError(ui_event_id)` for a missing record after durable duplicate checks;
+  replacement payloads with another `ui_id`, a revision other than `expected_revision + 1`, or a non-submitted
+  single-use status raise `ValueError` without mutation — missing storage state and malformed caller transitions
+  must not masquerade as accepted/stale actions — cost if wrong: T7 needs a specific missing-record handler that
+  recovers or refuses without dispatching a turn. Optimistic revision mismatch still returns `False`.
