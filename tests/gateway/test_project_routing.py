@@ -183,8 +183,10 @@ def test_missing_binding_project_can_be_retried(route):
     runner, source, project_id, folder = route
     with db.connect_closing(db_path=routing.runtime_projects_db(runner, source)) as conn:
         db.archive_project(conn, project_id)
-    with pytest.raises(routing.ProjectRouteError):
+    with pytest.raises(routing.ProjectRouteError) as error:
         routing.resolve_turn_pin(runner, source, None, history_empty=True)
+    assert error.value.params["project"] == "alpha"
+    assert "alpha" in error.value.user_message()
     with db.connect_closing(db_path=routing.runtime_projects_db(runner, source)) as conn:
         db.restore_project(conn, project_id)
     pin, persist = routing.resolve_turn_pin(runner, source, None, history_empty=True)

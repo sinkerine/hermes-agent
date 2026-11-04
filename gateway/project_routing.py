@@ -135,7 +135,7 @@ def pin_from_binding(runner: Any, source: SessionSource, *, now: Optional[int] =
         # Durable references are IDs; a later project's slug must never retarget them.
         if project is not None and project.id != binding.project_id:
             project = None
-        cwd = validate_project(project, binding.project_id)
+        cwd = validate_project(project, project.slug if project else binding.project_id)
         require_local_backend()
         # validate_project has rejected None before any project fields are read.
         assert project is not None
