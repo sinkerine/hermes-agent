@@ -197,7 +197,9 @@ The earlier claim that all valid fixtures satisfied strict rules was incorrect; 
 ```python
 # fallback.py / content.py
 def render_fallback_markdown(payload: Mapping[str, Any], *, status_line: str | None = None) -> str
-def build_ui_content(payload: Mapping[str, Any], fallback_md: str, *, to_html: Callable[[str], str],
+def render_fallback_html(fallback_md: str) -> str  # T4-aware conversion, including no-Markdown path
+
+def build_ui_content(payload: Mapping[str, Any], fallback_md: str, *, to_html: Callable[[str], str] | None = None,
                      sanitize_html: Callable[[str], str], thread_metadata: Mapping[str, Any] | None
                      ) -> dict[str, Any] | InteractiveUiError
 def build_ui_edit(original_event_id: str, new_content: dict[str, Any], summary: str) -> dict[str, Any] | InteractiveUiError
@@ -728,3 +730,15 @@ is ever involved.
   schema but must receive a no-send refusal from T6. Ordinary named platform enablement must exclude restricted
   schemas; T6 must test actual dispatch refusal. Tests and review reports must not describe `all` passthrough as
   runtime schema exclusion. Fix the separately identified callback `TimeoutError` misclassification within T2.
+- T4 environment incident: the worker reported an earlier command skipped sandbox setup after an inspection
+  failure, and the test runner provisioned tools under `/home/sinkerine/.hermes`. This violated the worktree-only
+  constraint. No external cleanup was attempted. Final worker validation and the parent's independent 345-test
+  rerun used the sandbox interpreter. Subsequent validation must use `set -e`, then source the sandbox environment
+  and assert the exact worktree-local `HERMES_HOME`, `HERMES_RUNTIME_DIR` and interpreter before any runner or PM
+  command. The report does not establish the precise external file delta; preserve the incident for delivery.
+- Ruling: add a T4-owned `render_fallback_html` and make `build_ui_content(to_html=...)` optional, defaulting to
+  that converter — the shared renderer's no-Markdown fallback corrupts T4-generated escapes, but an explicit
+  caller-supplied converter must retain precedence — cost if wrong: another narrow conversion path to maintain.
+  Preserve shared adapter rendering; final sanitization and byte budgets still apply. T6 production wiring must
+  use the new default or explicitly the T4 converter. Test missing-Markdown literal fidelity and custom-converter
+  precedence, rather than detecting dependencies inside the builder and silently ignoring the supplied callable.
