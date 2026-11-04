@@ -101,6 +101,34 @@ def _psutil_alive(proc) -> bool:
         return False
 
 
+def _descendants_outside_group(pid: int, pgid: Optional[int]) -> list:
+    """Snapshot children before leader exit reparents jobs in other process groups."""
+    import psutil  # type: ignore
+
+    try:
+        descendants = psutil.Process(pid).children(recursive=True)
+    except psutil.Error:
+        return []
+    outside = []
+    for child in descendants:
+        try:
+            if pgid is None or os.getpgid(child.pid) != pgid:  # windows-footgun: ok — POSIX-only module
+                outside.append(child)
+        except (OSError, psutil.Error):
+            pass  # exited during the snapshot
+    return outside
+
+
+def _signal_descendants(descendants: list, sig: int) -> None:
+    import psutil  # type: ignore
+
+    for child in descendants:
+        try:
+            child.send_signal(sig)
+        except psutil.Error:
+            pass  # already gone or no longer accessible
+
+
 class PtyBridge:
     """Thin wrapper around ``ptyprocess.PtyProcess`` for byte streaming. Not thread-safe: owned by
     the WebSocket handler that spawned it; reads run in an executor thread, writes are awaited on
@@ -330,8 +358,8 @@ class PtyBridge:
             self._discard_output(0.02)
 
     def close(self) -> None:
-        """Terminate the child's process group (SIGHUP → SIGTERM → SIGKILL, 0.5s grace each while
-        the leader lives, then up to the helper grace for the rest of the group), reap the leader so
+        """Terminate the child's process group and snapshotted jobs (SIGHUP with the helper
+        grace, then SIGTERM → SIGKILL with 0.5s each), reap the leader so
         the dashboard never leaks zombies, and close fds. Idempotent; blocks, so call it off the
         event loop.
         """
@@ -342,22 +370,17 @@ class PtyBridge:
 
         pgid = self._pgid
         leader_was_alive = self._proc.isalive()
-        # No group signal is safe for a shared-group child, so its descendants must be
-        # snapshotted BEFORE the parent is signalled: once the parent exits they reparent
-        # and psutil can no longer find them (process_registry._terminate_host_pid). The sweep below then kills them individually
-        # so a SIGHUP-ignoring helper cannot keep the PTY slave open (#76759).
-        non_leader_descendants: list = []
         if pgid is not None and pgid != self._proc.pid:
             # Not a group leader: the child shares OUR process group, so killpg would
             # take the TUI down with it. Signal the child directly instead.
-            if leader_was_alive:
-                try:
-                    import psutil  # type: ignore
-
-                    non_leader_descendants = psutil.Process(self._proc.pid).children(recursive=True)
-                except Exception:
-                    non_leader_descendants = []
             pgid = None
+
+        # Interactive shells put foreground jobs in separate groups. Snapshot those jobs before
+        # the shell exits; neither killpg(shell) nor closing the master guarantees they exit.
+        descendants = _descendants_outside_group(self._proc.pid, pgid) if leader_was_alive else []
+        grace = _helper_shutdown_grace()
+        helper_deadline = time.monotonic() + grace
+        _signal_descendants(descendants, signal.SIGHUP)  # windows-footgun: ok — POSIX-only module
 
         # Signal the whole process group, not just the PTY leader: the dashboard TUI starts helper
         # children (e.g. the Python slash worker) and killing only the leader strands them.
@@ -371,7 +394,8 @@ class PtyBridge:
                     self._proc.kill(sig)
             except Exception:
                 pass
-            deadline = time.monotonic() + 0.5
+            # Escalation hits helpers too: a delayed leader must not shorten their SIGHUP save.
+            deadline = helper_deadline if sig == signal.SIGHUP else time.monotonic() + 0.5  # windows-footgun: ok — POSIX-only module
             while self._proc.isalive() and time.monotonic() < deadline:
                 self._discard_output(0.02)
 
@@ -383,37 +407,22 @@ class PtyBridge:
         # leader was reaped, a pid wrap inside that window could hand it to a new group (killpg
         # then hits that group). The reaper closes a dead session within one tick, so the window is short.
         if pgid is not None:
-            grace = _helper_shutdown_grace()
             sweep = (signal.SIGKILL,) if leader_was_alive else (signal.SIGHUP, signal.SIGKILL)  # windows-footgun: ok — POSIX-only module (imports fcntl/termios/ptyprocess at top)
             if leader_was_alive:
-                self._wait_for_group_exit(pgid, grace)
+                self._wait_for_group_exit(pgid, max(0.0, helper_deadline - time.monotonic()))
             for sig in sweep:
                 try:
                     os.killpg(pgid, sig)  # windows-footgun: ok — POSIX-only module (imports fcntl/termios/ptyprocess at top)
                 except OSError:
                     break  # ESRCH: the group is empty
                 self._wait_for_group_exit(pgid, grace if sig == signal.SIGHUP else 0.5)  # windows-footgun: ok — POSIX-only module (imports fcntl/termios/ptyprocess at top)
-        elif non_leader_descendants:
-            # The shared-group branch: the helpers-outlive-leader sweep above cannot run
-            # (no killpg is safe), so end the snapshotted descendants individually. The main
-            # loop above signalled only the child PID, so the descendants got no SIGHUP —
-            # send it now and allow the helper grace, then SIGKILL survivors: a helper
-            # saving state on SIGHUP still finishes, and one that ignores SIGHUP cannot
-            # outlive the close (mirrors the group sweep's leader-dead cadence, #76759).
-            grace = _helper_shutdown_grace()
-            for sig in (signal.SIGHUP, signal.SIGKILL):  # windows-footgun: ok — POSIX-only module (imports fcntl/termios/ptyprocess at top)
-                for child in non_leader_descendants:
-                    try:
-                        if sig == signal.SIGHUP:  # windows-footgun: ok — POSIX-only module (imports fcntl/termios/ptyprocess at top)
-                            child.send_signal(sig)
-                        else:
-                            child.kill()
-                    except Exception:
-                        pass  # already gone; psutil raises NoSuchProcess/Zombie
-                if sig == signal.SIGHUP:  # windows-footgun: ok — POSIX-only module (imports fcntl/termios/ptyprocess at top)
-                    deadline = time.monotonic() + grace
-                    while any(_psutil_alive(c) for c in non_leader_descendants) and time.monotonic() < deadline:
-                        self._discard_output(0.02)
+        if descendants:
+            while any(_psutil_alive(c) for c in descendants) and time.monotonic() < helper_deadline:
+                self._discard_output(0.02)
+            _signal_descendants(descendants, signal.SIGKILL)  # windows-footgun: ok — POSIX-only module
+            deadline = time.monotonic() + 0.5
+            while any(_psutil_alive(c) for c in descendants) and time.monotonic() < deadline:
+                self._discard_output(0.02)
 
         try:
             self._proc.close(force=True)
