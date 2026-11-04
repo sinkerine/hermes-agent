@@ -224,6 +224,22 @@ class SessionPersistenceMixin:
         except Exception:
             return None  # same contract as ``_db``: a failed open degrades to JSONL fallback
 
+    @staticmethod
+    def _project_metadata_for_repoint(entry: SessionEntry, preserve: bool) -> dict[str, Any]:
+        from copy import deepcopy
+        from gateway.project_routing import PIN_METADATA_KEY
+        return {PIN_METADATA_KEY: deepcopy(entry.metadata[PIN_METADATA_KEY])} if (
+            preserve and PIN_METADATA_KEY in entry.metadata) else {}
+
+    def update_session_row_cwd(self, session_key: str, session_id: str, cwd: str) -> None:
+        """Stamp Desktop grouping metadata through the key's own store; failures cannot abort a turn."""
+        try:
+            db = self._db_for_key(session_key)
+            if db is not None:
+                db.update_session_cwd(session_id, cwd)
+        except Exception:
+            logger.warning("Could not stamp session cwd: key=%s session=%s", session_key, session_id, exc_info=True)
+
     def _owner_key_for_session_id(self, session_id: Optional[str]) -> Optional[str]:
         """The routing key that owns *session_id*, or None. The published index is authoritative;
         ``_session_owner_hints`` covers the window where ownership is proven but routing not yet
@@ -509,12 +525,10 @@ class SessionPersistenceMixin:
                 "gateway.session: repointing stale sessions.json entry %r from ended %s "
                 "(end_reason=%r) to recovered %s", key, entry.session_id, row["end_reason"],
                 recovered_entry.session_id)
-            if entry.prompt_pin and (
-                self._compression_tip_for_session_id(entry.session_id) == recovered_entry.session_id
-            ):
-                # The compression child continues this conversation: its internal turns keep the
-                # pinned system bytes (the rebuilt entry is minimal and would drop them).
+            if self._compression_tip_for_session_id(entry.session_id) == recovered_entry.session_id:
+                # Compression continues the conversation, including its frozen prompt and workspace.
                 recovered_entry.prompt_pin = entry.prompt_pin
+                recovered_entry.metadata.update(self._project_metadata_for_repoint(entry, True))
             return recovered_entry
         # Same-id recovery == successful resume: keep the ORIGINAL entry object (the recovered one
         # is rebuilt minimal and would drop counters, model_override, resume markers, metadata).

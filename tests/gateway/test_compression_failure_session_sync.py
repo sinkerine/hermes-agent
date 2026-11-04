@@ -128,6 +128,7 @@ def _runner(session_store):
 
 
 def _install_compression_failure_agent(monkeypatch, agent_cls=_CompressionThenFailureAgent):
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
     fake_run_agent = types.ModuleType("run_agent")
     fake_run_agent.AIAgent = agent_cls
     monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)

@@ -1293,6 +1293,7 @@ class TurnRunner(GatewayTurnProgressMixin, GatewaySessionAgentMixin):
         from gateway.session_api_turn import api_policy_scope
         from gateway.session_authorities import active_authority
         from hermes_state_runtime import RuntimeStoreError
+        from gateway.session_lifecycle import SessionRouteChangedError
         policy = policy_for_source(self._runner, self._ctx.source)
         with ExitStack() as scope:
             try:
@@ -1303,8 +1304,16 @@ class TurnRunner(GatewayTurnProgressMixin, GatewaySessionAgentMixin):
                     raise
             else:
                 scope.enter_context(api_policy_scope())
-                bind_turn_workspace(policy, self._ctx.session_id)
-                result = self._run_sync_scoped()
+                try:
+                    if policy is None:
+                        from gateway.project_routing import project_turn_scope
+                        from gateway.project_routing_turn import project_pin_for_key
+                        pin = project_pin_for_key(self._runner, self._ctx.session_key, self._ctx.session_id)
+                        scope.enter_context(project_turn_scope(pin))
+                    bind_turn_workspace(policy, self._ctx.session_id)
+                    result = self._run_sync_scoped()
+                except SessionRouteChangedError:
+                    result = {"final_response": "", "messages": [], "interrupted": True, "completed": False}
             from gateway.session_results import execution_result
             captured = execution_result.get()
             if captured is not None:

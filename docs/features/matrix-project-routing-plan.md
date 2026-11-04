@@ -484,6 +484,13 @@ Trim an equal number of characters elsewhere in the root, compressing wording on
 - Ruling: only an unscoped standalone turn supplies ambient `TERMINAL_*` via the existing `env_overlay` API when preparing its terminal policy; active mappings (including empty mappings) and refusal scopes remain authoritative — preserve launch policy rather than silently changing backends — cost if wrong: policy precedence regression. Resolution and execution validate the same effective backend; tests cover precedence and restoration.
 - Review clarification: persisted project references require an exact ID match even though interactive `get_project` accepts ID or slug — deleted references must fail closed rather than resolve another project's slug.
 
+- Ruling: adapt sixteen legacy bare gateway fixtures to the required routing seams — preserve production routing-state requirements — cost: modest test maintenance.
+- Ruling: preserve only project-pin metadata during non-boundary session repoints and compression recovery, including recovery without a prompt pin — compaction retains the conversation workspace — cost: narrow additional session integration seams.
+- Ruling: resolve/revalidate the project immediately after transcript loading and before model-capable hygiene; stamp an adopted compression child's cwd afterward — the no-model-call refusal acceptance criterion overrides the original wiring order — cost: an extra post-hygiene metadata stamp.
+- Ruling: publish and read turn pins with atomic expected-session-ID guards, implemented in the session lifecycle sibling — canceled resolver threads must not alter a replacement conversation — cost: optional identity guards on the existing metadata interface.
+- Verification limitation: the T3 broad gateway run had 52 failures reproduced against the committed baseline; the completed T3 affected-file selection passed 223 tests across 20 files. Full-feature verification must report remaining baseline failures explicitly.
+- Test environment: use `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh ...` for the PM-built dev/test/Matrix environment; the default runner's separate test environment omits the Matrix extra and skips Matrix tests. Call `MatrixDriver.arm_readiness()` before every gateway launch, including restart.
+
 ## 7. Risks and notes for implementers
 
 - **T2 (stand-in) is the long pole.** mautrix may call endpoints that aren't listed here. Run the smoke test, read the gateway log for 404s, and add them. Never weaken the adapter to fit the stand-in.

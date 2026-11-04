@@ -117,6 +117,7 @@ def _make_runner(adapter):
 
 
 def _install_fakes(monkeypatch, mode):
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
     monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", mode)
 
     fake_dotenv = types.ModuleType("dotenv")

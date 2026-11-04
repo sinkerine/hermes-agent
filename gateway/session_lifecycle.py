@@ -7,7 +7,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timedelta, timezone, UTC
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from hermes_state_ids import new_session_id
 
@@ -53,6 +53,10 @@ def auto_continue_freshness_window() -> float:
         return float(raw) if raw else float(_AUTO_CONTINUE_FRESHNESS_SECS_DEFAULT)
     except (TypeError, ValueError):
         return float(_AUTO_CONTINUE_FRESHNESS_SECS_DEFAULT)
+
+
+class SessionRouteChangedError(RuntimeError):
+    """The routing key belongs to a different conversation than the caller's snapshot."""
 
 
 class SessionLifecycleMixin:
@@ -158,6 +162,26 @@ class SessionLifecycleMixin:
                 return False
             self._save()
             return True
+
+    def get_session_metadata(
+        self, session_key: str, key: str, default: Any = None, *, expected_session_id: Optional[str] = None,
+    ) -> Any:
+        """Read metadata only from the conversation the caller owns, when specified."""
+        with self._lock:
+            entry = self._entry_locked(session_key)
+            if expected_session_id is not None and (entry is None or entry.session_id != expected_session_id):
+                raise SessionRouteChangedError("Session route changed during the turn")
+            return default if entry is None else entry.metadata.get(key, default)
+
+    def set_session_metadata(
+        self, session_key: str, key: str, value: Any, *, expected_session_id: Optional[str] = None,
+    ) -> bool:
+        """Persist metadata without advancing user activity; reject a replaced conversation atomically."""
+        def apply(entry):
+            if expected_session_id is not None and entry.session_id != expected_session_id:
+                return False
+            entry.metadata[key] = value
+        return self._update_entry(session_key, apply)
 
     def _update_all_entries_locked(self, mutate) -> int:
         """Apply ``mutate(entry) -> bool`` to every entry under ``_lock``; save once if any
