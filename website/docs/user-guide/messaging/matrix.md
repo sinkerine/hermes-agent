@@ -913,8 +913,26 @@ Matrix setup. The selection is stored in `platform_toolsets.matrix` in your
 profile's `config.yaml`, alongside the other enabled toolsets. It applies to the
 next session; use `/new` to start one after changing the selection.
 
+When enabled, Hermes is guided to choose `present_ui` without requiring you to
+name the tool whenever its components make information easier to understand,
+compare, explore, or act on. This includes informational cards, key-value summaries
+and status badges; tables and charts for comparisons or data; carousels and images
+for visual browsing; graphs for relationships; tabs and collapsibles for detail;
+and forms, buttons and inputs for interaction. Simple replies stay as text.
+Explicit requests for interactive cards, forms, buttons or selectable controls
+use this capability when available. The restriction on Markdown tables in ordinary
+Matrix replies does not apply to declarative UI table components.
+
+Matrix's `clarify` tool currently sends plain text questions and waits for a text
+reply during the tool call. It does not render a form or clickable choices.
+`present_ui` sends the card and returns immediately; a submission starts a **new
+user turn**. Hermes should finish the current turn after presenting a form and
+wait for the actual submission, without inventing selections. Cards should contain
+the substantive answer, with at most one brief accompanying sentence. A successful
+tool result confirms that the card was sent, not that the client rendered it.
+
 Cards require an Element Web build that supports the `feature_interactive_ui`
-labs flag, with that flag enabled. Other clients show the complete text fallback,
+flag, with that flag enabled (through Labs or the client's feature configuration). Other clients show the complete text fallback,
 including table rows, chart values, graph connections, options and action labels.
 Hermes can revise a card in place. Oversized or invalid cards produce a tool error
 so the agent can correct them or answer in plain text; cards are never truncated.

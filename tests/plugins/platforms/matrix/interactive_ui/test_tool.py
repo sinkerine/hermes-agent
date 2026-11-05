@@ -48,6 +48,51 @@ async def registered(producer, monkeypatch):
     manager.unload()
 
 
+@pytest.mark.asyncio
+async def test_matrix_prompt_and_registered_schema_explain_ui_turn_contract(registered):
+    from agent.system_prompt import build_system_prompt
+    from model_tools import get_tool_definitions
+    from tests.agent.test_system_prompt import _make_agent
+
+    tools = get_tool_definitions(enabled_toolsets=["interactive_ui", "clarify"],
+                                 skip_tool_search_assembly=True)
+    descriptions = {tool["function"]["name"]: tool["function"]["description"] for tool in tools}
+    prompt = build_system_prompt(_make_agent(platform="matrix", skip_context_files=True,
+                                            valid_tool_names=set(descriptions)))
+    # Inspect model-facing output through the real plugin entry and schema resolver.
+    assert "Do NOT use Markdown tables" in prompt
+    assert "does not apply to declarative UI tables" in prompt
+    assert "`clarify` (if available) sends plain text questions" in prompt
+    for guidance in (prompt, descriptions["present_ui"]):
+        assert "users need not name" in guidance
+        assert "Keep simple replies as text" in guidance
+        assert "NEW user turn" in guidance
+        assert "finish the current turn" in guidance
+        assert "never fabricate" in guidance
+        assert "not client rendering" in guidance
+
+
+@pytest.mark.asyncio
+async def test_ui_guidance_respects_disabled_tools_and_other_platforms(registered):
+    from agent.system_prompt import platform_hint
+    from hermes_cli.tools_config import _get_platform_tools
+    from model_tools import get_tool_definitions
+
+    for platform in ("matrix", "telegram", "cli"):
+        selected = _get_platform_tools({"platform_toolsets": {platform: ["clarify"]}}, platform)
+        tools = get_tool_definitions(enabled_toolsets=list(selected), skip_tool_search_assembly=True)
+        descriptions = {tool["function"]["name"]: tool["function"]["description"] for tool in tools}
+        assert "present_ui" not in descriptions
+        assert "present_ui" not in descriptions["clarify"]
+        hint = platform_hint(SimpleNamespace(platform=platform))
+        if platform == "matrix":
+            assert "if `present_ui` is available in this session" in hint
+            assert "If unavailable, answer in text" in hint
+        else:
+            assert "present_ui" not in hint
+            assert "On Matrix" not in hint
+
+
 async def dispatch(registered, args, *, bound=True, child=False):
     _ctx, _runner, source, _producer = registered
 

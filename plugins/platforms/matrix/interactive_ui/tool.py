@@ -7,9 +7,19 @@ from . import TOOLSET
 PRESENT_UI_SCHEMA = {
     "name": "present_ui",
     "description": (
-        "Present one interactive card in this Matrix conversation. Use when structure or interaction helps. "
+        "Present one interactive card in this Matrix conversation. Proactively choose this when supported components "
+        "make information easier to understand, compare, explore, or act on; users need not name this tool. "
+        "Use cards/key_value/badges for informational summaries and status; tables/charts for comparisons and data; "
+        "carousels/images for visual browsing; graphs for relationships; tabs/collapsibles for layered detail; "
+        "forms/buttons/select/choice/inputs for interaction. Keep simple replies as text. "
+        "Use this for explicit requests for an interactive form, card, buttons, or selectable controls. "
+        "Declarative table nodes are supported despite Matrix's Markdown-table limitation. "
         "Use meaningful labels; never include secrets, credentials or generated executable code. "
-        "The card contains the answer: follow with at most one sentence. A backend action arrives as a new user turn. "
+        "The card contains the substantive answer: follow with at most one brief sentence. "
+        "Submission does not block this tool call: it arrives as a NEW user turn. After presenting a form, "
+        "finish the current turn and wait for submission; never fabricate user selections or proceed as if submitted. "
+        "Check the tool result: success confirms sending, not client rendering. Never claim a form rendered merely "
+        "because a tool ran; clients without the renderer show text fallback. "
         "After two errors answer in plain text. Hermes owns version/ui_id/revision/status; fields inside ui are ignored. "
         "To revise a card use its returned replace_ui_id; status active/expired/superseded is only for revisions. "
         "UI: root references a node id; nodes is a flat array, all nodes reachable, ids unique. state maps binding keys "
