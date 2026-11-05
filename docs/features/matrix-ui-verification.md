@@ -1,8 +1,8 @@
 # Matrix interactive UI verification
 
-The deterministic encrypted native-browser journey passed its recorded assertions. **The required live quality gate FAILED, the 30-request budget is exhausted, and this branch is not verified complete or merge-ready.** Continuing live evaluation requires a user decision to authorize extra budget or explicitly waive the failed criterion; neither follows automatically from the deterministic result.
+The deterministic encrypted native-browser journey passed its recorded assertions. **The required live quality gate FAILED and the expanded 42-request budget is exhausted.** The user subsequently explicitly requested merging to the default branch with these reported verification limits; this does not turn the failed quality gate or full-suite failures into passes.
 
-This is a redacted verification record, not raw logs. Evidence links below resolve into the ignored local sandbox and are **not durable branch artifacts**: they will not accompany a clone or commit. They identify retained private receipts for local review, without reproducing credentials, nonces, action values or private event identifiers. Historical worker reports describe service ownership at their respective timestamps; at final closure all sandbox services are stopped and evidence is retained. No merge, push or archive was performed.
+This is a redacted verification record, not raw logs. Evidence links below resolve into the ignored local sandbox and are **not durable branch artifacts**: they will not accompany a clone or commit. They identify retained private receipts for local review, without reproducing credentials, nonces, action values or private event identifiers. Historical worker reports describe service ownership at their respective timestamps; at final closure all sandbox services are stopped and evidence is retained. The user authorized the default-branch merge after review of the reported limitations. No push or workspace archive is authorized.
 
 ## Implementation and review record
 
@@ -52,7 +52,7 @@ The [live result](../../.hermes-sandbox/matrix-ui/evidence/live-eval.json), [bud
 | Forced invalid payload | 3 | Missing-root error, then `nodes[0].gap: bad_value`; **zero valid cards** |
 | Fact, joke | 2 | Appropriate text-only answers, no UI tool |
 
-Six ordinary UI cases produced valid cards. The forced-invalid case did **not** self-correct to a valid card within its three requests, so the required live criterion failed. An empty `failed_cases` list and a `completed` case status in the evaluator JSON do not override `forced_invalid_self_corrected: false`, zero valid cards, or inappropriate-use status for that case. This evaluation establishes protocol quality only, not live encrypted delivery or live image upload. No additional model calls are authorized by this report.
+Six ordinary UI cases produced valid cards. The forced-invalid case did **not** self-correct to a valid card within its three requests, so the required live criterion failed. An empty `failed_cases` list and a `completed` case status in the evaluator JSON do not override `forced_invalid_self_corrected: false`, zero valid cards, or inappropriate-use status for that case. This evaluation establishes protocol quality only, not live encrypted delivery or live image upload. The user later authorized 12 additional requests. After schema-derived enum/type hints were improved in `800b49f356`, four targeted three-request retries each failed to produce a valid corrected card. Their separate `live-eval-invalid-*.json` receipts retain the failures. The ledger is now **42/42**, including nine TLS failures and 33 actual requests. No further model spending is authorized.
 
 ## Repository validation and attribution limits
 
@@ -85,4 +85,4 @@ The bounded triage and final setup-repair test receipts use `scripts/run_tests.s
 - Bob's historical flag-off fallback content is retained, but saved browser storage could not restore Bob's sign-in on reopening. New complete rendering captures use Alice's native text view and are not fresh Bob flag-off browser proof.
 - A worker provisioned outside the sandbox into the real `~/.hermes` location. The external delta is unknown; no cleanup was performed. This prevents a claim that all worker activity remained sandbox-contained.
 
-The live gate and unresolved full-suite failures remain open. Final setup-repair validation and tracked-snapshot checks pass. Any decision to spend more live budget or waive the live criterion must be explicit and user-owned; this report supplies no completion or merge approval.
+The live gate and unresolved full-suite failures remain open. Before syncing newer main, post-feedback focused verification passed **916 tests, six skipped**, and all 14 tracked-snapshot checks passed. The user explicitly requested merging to the default branch; no further model spending or remote push is authorized. Newer main was merged into this branch in `5e6361c4f1`; its only conflict was documentation, resolved by preserving both feature sections. Post-sync validation is recorded separately in the retained merge-validation logs.
