@@ -149,7 +149,7 @@ class GatewaySessionAgentMixin:
         )
 
     def _build_fresh_agent(self, turn_route, platform_key, combined_ephemeral, max_iterations,
-                           reasoning_config, pr, skip_context_files):
+                           reasoning_config, pr, skip_context_files, session_cwd=""):
         from gateway.run import _checkpoint_agent_kwargs
         ctx = self._ctx
         runner = self._runner
@@ -170,7 +170,7 @@ class GatewaySessionAgentMixin:
             providers_allowed=pr.get("only"), providers_ignored=pr.get("ignore"), providers_order=pr.get("order"),
             provider_sort=pr.get("sort"), provider_require_parameters=pr.get("require_parameters", False),
             provider_data_collection=pr.get("data_collection"),
-            session_id=ctx.session_id, platform=platform_key,
+            session_id=ctx.session_id, platform=platform_key, cwd=session_cwd or None,
             user_id=src.user_id, user_id_alt=src.user_id_alt, user_name=src.user_name,
             chat_id=src.chat_id, chat_name=src.chat_name, chat_type=src.chat_type, thread_id=src.thread_id,
             gateway_session_key=ctx.session_key,
@@ -193,13 +193,16 @@ class GatewaySessionAgentMixin:
         hits) or build a fresh one. Returns (agent, reused_cached_agent)."""
         ctx = self._ctx
         runner = self._runner
+        from gateway.project_routing_turn import project_pin_for_key
+        pin = project_pin_for_key(runner, ctx.session_key, ctx.session_id) if ctx.source.platform != Platform.LOCAL else None
+        session_cwd = pin.cwd if pin and pin.bound else ""
         skip_context_files = self._skip_context_files(platform_key)
         sig = runner._agent_config_signature(
             turn_route["model"], turn_route["runtime"], ctx.enabled_toolsets, combined_ephemeral,
             cache_keys=runner._extract_cache_busting_config(ctx.user_config),
             user_id=getattr(ctx.source, "user_id", None),
             user_id_alt=getattr(ctx.source, "user_id_alt", None),
-            skip_context_files=skip_context_files,
+            skip_context_files=skip_context_files, session_cwd=session_cwd,
         )
         cache_lock = getattr(runner, "_agent_cache_lock", None)
         cache = getattr(runner, "_agent_cache", None)
@@ -230,7 +233,7 @@ class GatewaySessionAgentMixin:
             with gateway_delegation_inline_scope(inline):
                 agent = self._build_fresh_agent(
                     turn_route, platform_key, combined_ephemeral, max_iterations, reasoning_config, pr,
-                    skip_context_files,
+                    skip_context_files, session_cwd,
                 )
             if cache_lock and cache is not None:
                 with cache_lock:

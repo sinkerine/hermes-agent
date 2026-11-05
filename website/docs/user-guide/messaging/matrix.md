@@ -978,3 +978,27 @@ Acceptance is committed before the confirmation edit and model dispatch. A gatew
 crash between that commit and dispatch can lose the turn; retrying the same action
 remains silent because its nonce was already accepted. Ask Hermes to continue in
 a normal message if that happens.
+
+## Project rooms
+
+Use `!project` (or `/project`) to bind a room to a native Hermes Project in the profile already serving that room. Commands take effect without restarting the gateway:
+
+- `!project create alpha --name "Alpha"` creates and binds a workspace with `AGENTS.md` and `sources/`.
+- `!project bind alpha` binds an existing project by slug or ID.
+- `!project info` shows the room binding and this conversation's workspace pin; `!project list` lists non-archived projects.
+- `!project bind beta --force` replaces an existing binding. Existing conversations keep their workspace. Start a new thread or use `!new` to pick up the new binding.
+- `!project unbind` stops routing new conversations to the project. Files, transcripts, and existing conversation pins remain intact.
+
+Creation requires an existing workspace root in the gateway's configuration:
+
+```yaml
+gateway:
+  project_routing:
+    workspace_root: /absolute/path/to/projects
+```
+
+An empty or unset root disables creation; binding existing projects still works. Creation accepts safe slugs only and refuses symlink escapes. Repeating creation reuses the project and preserves existing `AGENTS.md` content. Project routing requires the local terminal backend. The project directory sets the working directory and context discovery; **cwd is not a sandbox** and does not restrict tools to that directory.
+
+For manual Matrix threads, set `MATRIX_SESSION_SCOPE=room` and `MATRIX_AUTO_THREAD=false`. Each thread gets its own conversation and workspace pin; the room timeline has its own conversation. Rooms with two or fewer members are treated as DMs. A conversation that predates the binding keeps its old context until `!new`; changing the binding never migrates history. Deleted, archived, or unavailable projects fail with a clear reply rather than falling back to another workspace.
+
+`create`, `bind`, and `unbind` require admin access in addition to ordinary slash access. Set `platforms.matrix.extra.group_allow_admin_from` for rooms and `allow_admin_from` for DMs; allow regular users `project` through the corresponding `group_user_allowed_commands` or `user_allowed_commands` list to enable `info` and `list`. When the admin list for a scope is unset, every allowed user in that scope is treated as an admin. Configure explicit admin lists for shared bots. Projects remain inside the runtime profile selected by the bot or static `gateway.profile_routes`; `/project` has no dynamic `--profile` option.

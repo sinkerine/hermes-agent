@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -51,6 +52,18 @@ CREATE TABLE IF NOT EXISTS project_folders (
 CREATE INDEX IF NOT EXISTS idx_project_folders_path
     ON project_folders(path);
 
+-- No FK: deleting a project must leave its room binding visible as a routing error.
+CREATE TABLE IF NOT EXISTS chat_project_bindings (
+    platform          TEXT NOT NULL,
+    transport_profile TEXT NOT NULL,
+    chat_id           TEXT NOT NULL,
+    project_id        TEXT NOT NULL,
+    bound_by          TEXT,
+    created_at        INTEGER NOT NULL,
+    updated_at        INTEGER NOT NULL,
+    PRIMARY KEY (platform, transport_profile, chat_id)
+);
+
 CREATE TABLE IF NOT EXISTS project_meta (
     key    TEXT PRIMARY KEY,
     value  TEXT
@@ -72,6 +85,8 @@ _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9\-_]{0,63}$")
 # Deterministic branch slug: lowercase, separators collapsed, capped.
 _BRANCH_SAFE_RE = re.compile(r"[^a-z0-9._-]+")
 _INITIALIZED_PATHS: set[str] = set()
+_CONNECT_LOCKS: dict[str, threading.RLock] = {}
+_CONNECT_LOCKS_GUARD = threading.Lock()
 # TEXT columns added to `projects` after v1; re-applied idempotently on every open so a legacy DB
 # upgrades in place.
 _OPTIONAL_PROJECT_COLUMNS = ("board_slug", "primary_path", "icon", "color")
@@ -130,7 +145,12 @@ def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
                 _add_column_if_missing(conn, "projects", col, f"{col} TEXT")
         _INITIALIZED_PATHS.add(resolved)
 
-    return open_db(path, db_label="projects.db", foreign_keys=True, initialize=_initialize)
+    with _CONNECT_LOCKS_GUARD:
+        setup_lock = _CONNECT_LOCKS.setdefault(resolved, threading.RLock())
+    # Concurrent journal upgrades can bypass SQLite's busy timeout. Guard WAL setup and the
+    # schema cache together, releasing before callers start any reads or write transactions.
+    with setup_lock:
+        return open_db(path, db_label="projects.db", foreign_keys=True, initialize=_initialize)
 
 
 @contextlib.contextmanager
@@ -143,6 +163,65 @@ def connect_closing(db_path: Optional[Path] = None):
     finally:
         with contextlib.suppress(Exception):
             conn.close()
+
+
+@dataclass(frozen=True)
+class ChatBinding:
+    platform: str
+    transport_profile: str
+    chat_id: str
+    project_id: str
+    bound_by: Optional[str]
+    created_at: int
+    updated_at: int
+
+
+def get_chat_binding(
+    conn: sqlite3.Connection, *, platform: str, transport_profile: str, chat_id: str,
+) -> Optional[ChatBinding]:
+    row = conn.execute(
+        "SELECT * FROM chat_project_bindings WHERE platform = ? AND transport_profile = ? AND chat_id = ?",
+        (platform, transport_profile, chat_id),
+    ).fetchone()
+    return ChatBinding(**dict(row)) if row is not None else None
+
+
+def set_chat_binding(
+    conn: sqlite3.Connection, *, platform: str, transport_profile: str, chat_id: str,
+    project_id: str, bound_by: Optional[str] = None,
+) -> ChatBinding:
+    """Upsert a binding, retaining its creation time; reject unknown project IDs.
+
+    Join a caller-owned transaction without committing it, or start an IMMEDIATE write transaction.
+    """
+    now = _now()
+    with contextlib.nullcontext(conn) if conn.in_transaction else write_txn(conn):
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise ValueError(f"no such project: {project_id}")
+        conn.execute(
+            "INSERT INTO chat_project_bindings "
+            "(platform, transport_profile, chat_id, project_id, bound_by, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(platform, transport_profile, chat_id) DO UPDATE SET "
+            "project_id = excluded.project_id, bound_by = excluded.bound_by, updated_at = excluded.updated_at",
+            (platform, transport_profile, chat_id, project_id, bound_by, now, now),
+        )
+        row = conn.execute(
+            "SELECT * FROM chat_project_bindings WHERE platform = ? AND transport_profile = ? AND chat_id = ?",
+            (platform, transport_profile, chat_id),
+        ).fetchone()
+    return ChatBinding(**dict(row))
+
+
+def delete_chat_binding(
+    conn: sqlite3.Connection, *, platform: str, transport_profile: str, chat_id: str,
+) -> bool:
+    with write_txn(conn):
+        cursor = conn.execute(
+            "DELETE FROM chat_project_bindings WHERE platform = ? AND transport_profile = ? AND chat_id = ?",
+            (platform, transport_profile, chat_id),
+        )
+    return cursor.rowcount > 0
 
 
 @dataclass
@@ -223,7 +302,10 @@ def create_project(
     color: Optional[str] = None, board_slug: Optional[str] = None, allow_duplicate_path: bool = False,
 ) -> str:
     """Create a project and return its id. ``folders`` are normalized to absolute paths; ``primary_path``
-    is added to the folder set (if absent) and marked primary, else the first folder becomes primary."""
+    is added to the folder set (if absent) and marked primary, else the first folder becomes primary.
+
+    Join a caller-owned transaction without committing it, or start an IMMEDIATE write transaction.
+    """
     name = str(name or "").strip()
     if not name:
         raise ValueError("project name must not be empty")
@@ -236,13 +318,13 @@ def create_project(
         folder_paths.insert(0, primary)
     if primary is None and folder_paths:
         primary = folder_paths[0]
-    existing = find_by_primary_path(conn, primary) if primary and not allow_duplicate_path else None
-    if existing is not None:
-        raise ValueError(
-            f"folder already belongs to project '{existing.slug}' ({existing.id}); "
-            "switch to it instead of creating a duplicate"
-        )
-    with write_txn(conn):
+    with contextlib.nullcontext(conn) if conn.in_transaction else write_txn(conn):
+        existing = find_by_primary_path(conn, primary) if primary and not allow_duplicate_path else None
+        if existing is not None:
+            raise ValueError(
+                f"folder already belongs to project '{existing.slug}' ({existing.id}); "
+                "switch to it instead of creating a duplicate"
+            )
         conn.execute(
             "INSERT INTO projects (id, slug, name, description, icon, color, board_slug,  primary_path, created_at, archived) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",

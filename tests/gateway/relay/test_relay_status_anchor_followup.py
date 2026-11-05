@@ -61,10 +61,11 @@ async def test_queued_followup_status_stays_on_its_own_message(monkeypatch, tmp_
     first, queued, newest = _event('1700000000.000900'), _event('1700000000.000901', 'follow-up'), _event('1700000000.000902')
     for event in (first, queued, newest):  # a newer message reached the chat after the queued one
         adapter._capture_scope(event)
-    adapter._pending_messages[SESSION_KEY] = queued
+    entry = runner.session_store.get_or_create_session(first.source)
+    adapter._pending_messages[entry.session_key] = queued
 
     result = await runner._run_agent(message='first', context_prompt='', history=[], source=first.source,
-                                     session_id='sess-anchor', session_key=SESSION_KEY,
+                                     session_id=entry.session_id, session_key=entry.session_key,
                                      event_message_id=first.message_id)
 
     assert _TwoTurnAgent.calls == ['first', 'follow-up'] and result['final_response'] == 'done-2'

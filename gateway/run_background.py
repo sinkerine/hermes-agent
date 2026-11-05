@@ -1,5 +1,6 @@
 """Finite background tasks launched by the gateway /bg command."""
 
+import asyncio
 from contextlib import suppress
 import logging
 import os
@@ -50,7 +51,32 @@ class GatewayBackgroundMixin:
             return
         _thread_metadata = self._thread_metadata_for_source(source, event_message_id)
 
+        from gateway.project_routing import ProjectRouteError, project_turn_scope, revalidate_pin
+        from gateway.project_routing_turn import project_pin_for_key
+        from gateway.session_lifecycle import SessionRouteChangedError
+
+        def resolve_pin():
+            with self._profile_scope_for_source(source):
+                session_key = self._session_key_for_source(source)
+                session_id = self.session_store.peek_session_id(session_key)
+                pin = project_pin_for_key(self, session_key, session_id)
+                if pin and pin.bound:
+                    revalidate_pin(self, source, pin)
+                if self.session_store.peek_session_id(session_key) != session_id:
+                    raise SessionRouteChangedError("Session route changed during background project validation")
+                return pin, session_key, session_id
+
         try:
+            try:
+                pin, session_key, session_id = await asyncio.to_thread(resolve_pin)
+            except SessionRouteChangedError:
+                return
+            except ProjectRouteError as exc:
+                logger.warning("Project route refused: reason=%s platform=%s room=%s",
+                               exc.reason, source.platform.value, source.parent_chat_id or source.chat_id)
+                await adapter.send(source.chat_id, exc.user_message(), metadata=_thread_metadata)
+                return
+
             user_config = _load_gateway_config()
             model, runtime_kwargs = self._resolve_session_agent_runtime(source=source, user_config=user_config)
             if not runtime_kwargs.get("api_key"):
@@ -82,38 +108,41 @@ class GatewayBackgroundMixin:
                 from gateway.session_context import declare_stateless_channel
                 # This finite /bg session has no route for a completion after its final reply.
                 declare_stateless_channel()
-                agent = AIAgent(
-                    model=turn_route["model"],
-                    **turn_route["runtime"],
-                    **_checkpoint_agent_kwargs(user_config),
-                    max_iterations=max_iterations,
-                    quiet_mode=True,
-                    verbose_logging=False,
-                    enabled_toolsets=enabled_toolsets,
-                    disabled_toolsets=disabled_toolsets,
-                    reasoning_config=reasoning_config,
-                    service_tier=self._service_tier,
-                    request_overrides=turn_route.get("request_overrides"),
-                    providers_allowed=pr.get("only"),
-                    providers_ignored=pr.get("ignore"),
-                    providers_order=pr.get("order"),
-                    provider_sort=pr.get("sort"),
-                    provider_require_parameters=pr.get("require_parameters", False),
-                    provider_data_collection=pr.get("data_collection"),
-                    session_id=task_id,
-                    platform=platform_key,
-                    **{k: getattr(source, k) for k in (
-                        "user_id", "user_id_alt", "user_name", "chat_id", "chat_name", "chat_type", "thread_id",
-                    )},
-                    session_db=getattr(self._session_db, "_db", self._session_db),
-                    # Reload from disk — do not reuse the startup snapshot.
-                    # See #60955.
-                    fallback_model=self._refresh_fallback_model(),
-                )
-                try:
-                    return agent.run_conversation(user_message=enriched_prompt, task_id=task_id)
-                finally:
-                    self._cleanup_agent_resources(agent)
+                if self.session_store.peek_session_id(session_key) != session_id:
+                    raise SessionRouteChangedError("Session route changed before background execution")
+                with self._profile_scope_for_source(source), project_turn_scope(pin):
+                    agent = AIAgent(
+                        model=turn_route["model"],
+                        **turn_route["runtime"],
+                        **_checkpoint_agent_kwargs(user_config),
+                        max_iterations=max_iterations,
+                        quiet_mode=True,
+                        verbose_logging=False,
+                        enabled_toolsets=enabled_toolsets,
+                        disabled_toolsets=disabled_toolsets,
+                        reasoning_config=reasoning_config,
+                        service_tier=self._service_tier,
+                        request_overrides=turn_route.get("request_overrides"),
+                        providers_allowed=pr.get("only"),
+                        providers_ignored=pr.get("ignore"),
+                        providers_order=pr.get("order"),
+                        provider_sort=pr.get("sort"),
+                        provider_require_parameters=pr.get("require_parameters", False),
+                        provider_data_collection=pr.get("data_collection"),
+                        session_id=task_id, cwd=pin.cwd if pin and pin.bound else None,
+                        platform=platform_key,
+                        **{k: getattr(source, k) for k in (
+                            "user_id", "user_id_alt", "user_name", "chat_id", "chat_name", "chat_type", "thread_id",
+                        )},
+                        session_db=getattr(self._session_db, "_db", self._session_db),
+                        # Reload from disk — do not reuse the startup snapshot.
+                        # See #60955.
+                        fallback_model=self._refresh_fallback_model(),
+                    )
+                    try:
+                        return agent.run_conversation(user_message=enriched_prompt, task_id=task_id)
+                    finally:
+                        self._cleanup_agent_resources(agent)
 
             result = await self._run_in_executor_with_context(run_sync)
 
@@ -162,6 +191,8 @@ class GatewayBackgroundMixin:
                         )
                         await sender(chat_id=source.chat_id, metadata=_thread_metadata, **{key: media_path})
 
+        except SessionRouteChangedError:
+            return
         except Exception:
             logger.exception("Background task %s failed", task_id)
             # Automatic failure diagnostic (the task produced no requested result to deliver).

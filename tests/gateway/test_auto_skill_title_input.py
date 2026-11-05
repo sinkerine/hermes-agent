@@ -48,6 +48,8 @@ async def test_gateway_titles_original_request_without_changing_model_input(tmp_
     runner._hmwa_acquire_turn_lease = AsyncMock()
     runner._mark_durable_active_turn = AsyncMock()
     runner.session_store = object()
+    monkeypatch.setattr("gateway.project_routing_turn.apply_turn_project_pin", AsyncMock(return_value=None))
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args, **kwargs: None)
     runner._async_session_store = SimpleNamespace(_store=runner.session_store, load_transcript=AsyncMock(return_value=[]))
     runner._hmwa_run_session_hygiene = AsyncMock(return_value=[])
     runner._hmwa_first_contact_notes = AsyncMock()

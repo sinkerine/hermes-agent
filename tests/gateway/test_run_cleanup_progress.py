@@ -174,6 +174,7 @@ def _install_fakes(
     cleanup_platform: Platform = Platform.TELEGRAM,
 ):
     """Wire up the module stubs every _run_agent test needs."""
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
     monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")

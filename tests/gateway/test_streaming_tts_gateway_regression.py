@@ -51,6 +51,7 @@ class _NoopAgent:
 
 
 def _install_fake_agent(monkeypatch):
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
     fake_run_agent = types.ModuleType("run_agent")
     fake_run_agent.AIAgent = _NoopAgent
     monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)

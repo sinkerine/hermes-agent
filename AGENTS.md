@@ -1,9 +1,9 @@
 # Hermes Agent - Development Guide
 
-For AI coding assistants and developers working on hermes-agent. This root file is a hub: what
-applies everywhere, then a routing table. Each area's `AGENTS.md` loads automatically when you work
+For hermes-agent assistants and developers: global rules, then an area routing table.
+Each area's `AGENTS.md` loads automatically when you work
 in that directory; read it before editing there. `python scripts/check` caps this file at 12k chars
-and every root-to-area chain at 30k, so it loads whole on 128k+ models: long form goes in the guide.
+and every root-to-area chain at 30k, so 128k+ models load it whole; long form goes in the guide.
 
 **Persist toward the solution.**
 
@@ -145,7 +145,7 @@ Large modules use a **facade** for public entry points and imports, plus **sibli
 - **Tests:** always `scripts/run_tests.sh`, never bare `pytest`; behaviour contracts, never
   change-detectors or source-reading tests; host-specific behaviour is tested on that host with
   `@pytest.mark.platforms(...)`, never by faking `sys.platform`; tests never write to `~/.hermes/`.
-  Everything else: `tests/AGENTS.md`.
+  Feature E2E (sandbox, real gateway + stand-ins) and test instructions: `tests/AGENTS.md`.
 
 ## Routing Table — working in X → read X/AGENTS.md
 

@@ -42,6 +42,37 @@ approval:
     second_one: "{count}초"
     second_other: "{count}초"
 gateway:
+  project:
+    usage: "/project [info|list|create <slug> [--name \"Display\"] [--force]|bind <id|slug> [--force]|unbind|help]"
+    admin_only: "Only an admin may create, bind, or unbind projects."
+    info_bound: "Room project: {name} ({project}, {id})\nFolder: {path}\nRuntime profile home: {profile}"
+    info_unbound: "Room project: unbound\nRuntime profile home: {profile}"
+    info_dangling: "Room binding references missing project {project}. Bind another project or unbind this room."
+    info_pin: "This conversation: {project}\nPinned folder: {path}"
+    info_pin_differs: "This conversation keeps its previous workspace. /new or a new thread uses the current room binding: {project}."
+    list_header: "Projects in this runtime profile (* = room binding):"
+    list_item: "{mark} {name} ({project}, {id}) — {path}"
+    list_empty: "No non-archived projects in this runtime profile."
+    created: "Created project {project}."
+    reused: "Reused project {project}."
+    bound: "Bound this room to {project}: {path}. Existing conversations keep their workspace; use /new or a new thread to pick up this binding."
+    already_bound: "This room is already bound to {project}: {path}."
+    rebind_needs_force: "This room is bound to {project}. Use --force to replace the binding. Existing conversations keep their workspace."
+    unbound: "Room unbound. No files or transcripts were deleted. Existing conversations keep their workspace; /new or a new thread runs without a project."
+    not_bound: "This room has no project binding."
+    no_workspace_root: "Project creation is disabled. Set gateway.project_routing.workspace_root to an existing workspace directory."
+    invalid_slug: "Invalid slug. Use 1–64 letters, digits, hyphens or underscores, starting with a letter or digit; no path separators or dots."
+    unsafe_path: "Unsafe workspace path or unavailable root. Use an existing root and a direct child without symlinked scaffold entries."
+    slug_conflict: "Project {project} already uses another folder. Use /project bind instead."
+    unknown_project: "Unknown project: {project}. Use /project list."
+    failed: "Project command failed: {error}. You may retry safely."
+    error:
+      no_identity: "프로젝트 라우팅에서 수신 봇을 식별하지 못했습니다. 메시지를 다시 보내 주세요."
+      missing: "프로젝트 {project}이(가) 더 이상 존재하지 않습니다. 다른 프로젝트를 연결하고 새 대화를 시작하세요."
+      archived: "프로젝트 {project}이(가) 보관되었습니다. 복원하거나 다른 프로젝트로 새 대화를 시작하세요."
+      no_path: "프로젝트 {project}에 기본 폴더가 없습니다. 계속하기 전에 설정하세요."
+      path_missing: "프로젝트 {project}의 폴더를 사용할 수 없습니다: {path}. 계속하기 전에 복원하세요."
+      backend: "프로젝트 라우팅에는 로컬 터미널 백엔드가 필요합니다. 현재 백엔드는 {backend}입니다."
   approval_expired: "⚠️ 승인이 만료되었습니다 (에이전트가 더 이상 대기하지 않습니다). 에이전트에게 다시 시도하도록 요청하세요."
   draining: "⏳ 재시작 전에 활성 에이전트 {count}명을 정리하는 중..."
   goal_cleared: "✓ 목표가 삭제되었습니다."
@@ -1481,6 +1512,8 @@ platform:
     prompt_other: "✏️ 기타 (직접 입력)"
     prompt_expired: ⌛ 이 프롬프트는 더 이상 답변을 기다리지 않아요. 일반 메시지로 답변을 보내 주세요.
 slash:
+  project:
+    description: "Bind this room to a project workspace (info/list/create/bind/unbind)"
   approve:
     description: "대기 중인 위험 명령 승인"
   bg:

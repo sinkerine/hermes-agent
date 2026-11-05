@@ -168,10 +168,12 @@ def import_after_ready(authorities) -> None:
     still write a room in between. Once ready, that backend forwards every call (or waits while
     the gateway is starting), so this second pass leaves nothing stranded until the next restart.
     The service's driver re-reads its bindings each tick and is woken for the claimed rooms."""
-    import threading
+    import asyncio
+    from gateway.session_runtime_workers import track_mutation
     for authority in authorities:
         service = getattr(authority, "hosted_room_service", None)
-        if service is None or getattr(service, "_ready_import_started", False):
+        if (getattr(authority, "retiring", False) or service is None
+                or getattr(service, "_ready_import_started", False)):
             continue
         service._ready_import_started = True
         target, epoch = Path(authority.db.db_path), authority.epoch
@@ -181,4 +183,7 @@ def import_after_ready(authorities) -> None:
             with owner_scope(authority):  # a new thread holds the launch profile's scope otherwise
                 if import_standalone_rooms(target, runtime_epoch=epoch):
                     service.wakeup()
-        threading.Thread(target=run, name="hosted-rooms-ready-import", daemon=True).start()
+        async def import_owned(run=run, authority=authority):
+            if not getattr(authority, "retiring", False):
+                await asyncio.to_thread(run)
+        track_mutation(authority, import_owned())

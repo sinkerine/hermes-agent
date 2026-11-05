@@ -84,6 +84,7 @@ def test_a_room_disbanded_in_the_gateway_never_comes_back(tmp_path):
 
 
 def test_the_gateway_imports_again_once_ready(tmp_path):
+    import asyncio
     import threading
     from types import SimpleNamespace
     from gateway.hosted_rooms_gateway_import import import_after_ready
@@ -93,9 +94,12 @@ def test_the_gateway_imports_again_once_ready(tmp_path):
                                 hosted_room_service=SimpleNamespace(wakeup=woke.set))
     _standalone_room(source, "room-window")  # written by a standalone backend before `ready`
 
-    import_after_ready([authority])
+    async def ready_import():
+        import_after_ready([authority])
+        await asyncio.gather(*authority._mutation_tasks)
 
-    assert woke.wait(10)
+    asyncio.run(ready_import())
+    assert woke.is_set()
     assert [r["room_id"] for r in hosted_rooms.list_rooms(target)] == ["room-window"]
 
 

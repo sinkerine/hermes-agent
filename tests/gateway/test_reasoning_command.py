@@ -130,6 +130,7 @@ class TestReasoningCommand:
 
 
     def test_run_agent_includes_enabled_mcp_servers_in_gateway_toolsets(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
         hermes_home = tmp_path / "hermes"
         hermes_home.mkdir()
         (hermes_home / "config.yaml").write_text(

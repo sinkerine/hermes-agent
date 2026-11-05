@@ -702,9 +702,35 @@ class GatewayTurnPrepareMixin:
         # from []. Restore task-local context here (before the broad cleanup finally).
         try:
             history = await self.async_session_store.load_transcript(session_entry.session_id)
+        except TranscriptReadError:
+            self._clear_session_env(_session_env_tokens)
+            from gateway.session_results import record_unexecuted_failure
+            return record_unexecuted_failure(t("gateway.errors.history_unavailable")), _session_env_tokens
+
+        from gateway.project_routing_turn import apply_turn_project_pin, stamp_turn_project_cwd
+        from gateway.session_lifecycle import SessionRouteChangedError
+        try:
+            refusal = await apply_turn_project_pin(self, source, session_entry, history)
+        except SessionRouteChangedError:
+            self._clear_session_env(_session_env_tokens)
+            return None, _session_env_tokens
+        except BaseException:
+            self._clear_session_env(_session_env_tokens)
+            raise
+        if refusal:
+            self._clear_session_env(_session_env_tokens)
+            from gateway.session_results import record_unexecuted_failure
+            return record_unexecuted_failure(refusal, reason="project_route"), _session_env_tokens
+
+        try:
             history = await self._hmwa_run_session_hygiene(
                 event, source, session_entry, session_key, history, _quick_key, run_generation,
             )
+            if source.platform != Platform.LOCAL:
+                await asyncio.to_thread(stamp_turn_project_cwd, self, session_entry)
+        except SessionRouteChangedError:
+            self._clear_session_env(_session_env_tokens)
+            return None, _session_env_tokens
         except TranscriptReadError:
             self._clear_session_env(_session_env_tokens)
             from gateway.session_results import record_unexecuted_failure

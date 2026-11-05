@@ -177,6 +177,7 @@ async def test_monitor_to_drain_transcribes_and_echoes_pending_voice_once(
     monkeypatch,
     tmp_path,
 ):
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
     monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "off")
     monkeypatch.setenv("HERMES_GATEWAY_NOTIFY_INTERVAL", "0")
     monkeypatch.setitem(sys.modules, "dotenv", types.SimpleNamespace(load_dotenv=lambda: None))

@@ -154,6 +154,7 @@ def _make_runner(adapter):
 
 
 async def _run_once(monkeypatch, tmp_path, agent_cls, session_id):
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
     monkeypatch.setenv("HERMES_TOOL_PROGRESS_MODE", "all")
 
     fake_dotenv = types.ModuleType("dotenv")

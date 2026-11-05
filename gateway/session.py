@@ -1121,21 +1121,6 @@ class SessionStore(
         self._record_gateway_session_peer(
             peer_sid, session_key, peer_origin, display_name=peer_name, transport_profile=peer_transport)
 
-    def get_session_metadata(self, session_key: str, key: str, default: Any = None) -> Any:
-        """Return a metadata value stored on a live session entry."""
-        with self._lock:
-            entry = self._entry_locked(session_key)
-            return default if entry is None else entry.metadata.get(key, default)
-
-    def set_session_metadata(self, session_key: str, key: str, value: Any) -> bool:
-        """Persist a small JSON-serializable metadata value. Deliberately does NOT advance
-        ``updated_at``: a background write must not make an idle session look fresh.
-
-        Internal bookkeeping must not advance the user-activity clock used by housekeeping
-        and restart recovery.
-        """
-        return self._update_entry(session_key, lambda e: e.metadata.__setitem__(key, value))
-
     def set_model_override(self, session_key: str, override: Optional[dict[str, Any]]) -> None:
         """Persist (or clear, with ``None``) the /model override; non-secret keys only."""
         from dataclasses import replace
@@ -1318,6 +1303,7 @@ class SessionStore(
                 session_key, old_entry, target_session_id, _now(),
                 display_name=old_entry.display_name, model_override=old_entry.model_override,
                 yolo=old_entry.yolo,
+                metadata=self._project_metadata_for_repoint(old_entry, preserve_prompt_pin),
                 prompt_pin=(
                     dict(old_entry.prompt_pin)
                     if preserve_prompt_pin and old_entry.prompt_pin is not None else None

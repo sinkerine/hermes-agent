@@ -120,6 +120,7 @@ def _make_runner(adapter):
 
 
 def _install_fake_agent(monkeypatch, tmp_path, agent_cls):
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
     fake_dotenv = types.ModuleType("dotenv")
     fake_dotenv.load_dotenv = lambda *args, **kwargs: None
     monkeypatch.setitem(sys.modules, "dotenv", fake_dotenv)

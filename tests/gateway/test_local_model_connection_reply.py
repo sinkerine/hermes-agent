@@ -10,6 +10,12 @@ from gateway.run import (
     _sanitize_gateway_final_response,
 )
 
+
+@pytest.fixture(autouse=True)
+def _no_project_pin(monkeypatch):
+    # Resolution-error fixtures stop before session storage or an agent exists.
+    monkeypatch.setattr("gateway.project_routing_turn.project_pin_for_key", lambda *args: None)
+
 # Terminal-path envelopes for an ESTABLISHED connection that died mid-transfer. Whether the
 # endpoint is up is unknowable from these (the same turn may already have been answered by it).
 INTERRUPTED_ENVELOPES = (
