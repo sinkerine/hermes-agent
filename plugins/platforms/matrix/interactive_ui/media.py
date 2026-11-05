@@ -82,10 +82,18 @@ def prepare_uploads(payload: dict, *, max_bytes: int) -> list[ImageUpload] | Int
 
 async def _needs_encrypted_upload(adapter, room_id: str) -> bool:
     """Only an explicit unencrypted state permits plaintext UI media uploads."""
-    from mautrix.types import RoomID
+    from mautrix.errors import MNotFound
+    from mautrix.types import EventType, RoomID
 
-    # Mautrix returns None for an unknown room; the legacy media helper loses that distinction.
+    # Unencrypted rooms have no encryption event, so sync may leave their cache empty.
     state = await adapter._client.state_store.is_encrypted(RoomID(room_id))
+    if state is None:
+        try:
+            await adapter._client.get_state_event(RoomID(room_id), EventType.ROOM_ENCRYPTION)
+        except MNotFound:
+            state = False
+        else:
+            state = True
     if state is not True and state is not False:
         raise ValueError("Room encryption state unavailable")
     crypto_available = adapter._encryption and getattr(adapter._client, "crypto", None) is not None

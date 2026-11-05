@@ -119,6 +119,33 @@ async def test_carousel_image_upload(producer, tmp_path):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("encrypted", [False, True])
+async def test_upload_resolves_uncached_room_encryption(producer, tmp_path, encrypted):
+    from mautrix.errors import MNotFound
+    from mautrix.types import EventType, RoomEncryptionStateEventContent
+
+    path = tmp_path / "image.png"
+    path.write_bytes(b"\x89PNG\r\n\x1a\nimage")
+    client = producer.adapter._client
+    client.state_store.encryption.clear()
+    client.get_state_event = AsyncMock(return_value=RoomEncryptionStateEventContent())
+    if not encrypted:
+        client.get_state_event.side_effect = MNotFound(404, "State event not found")
+    client.upload_media = AsyncMock(return_value="mxc://example.org/image")
+    result = await present(producer, image_ui(path))
+    assert result["ok"]
+    client.get_state_event.assert_awaited_once_with("!room:example.org", EventType.ROOM_ENCRYPTION)
+    image = client.send_message_event.await_args.args[2][INTERACTIVE_UI_KEY]["nodes"][0]
+    if encrypted:
+        from mautrix.crypto.attachments import decrypt_attachment
+        file = image["file"]
+        assert decrypt_attachment(client.upload_media.await_args.args[0], file["key"]["k"],
+                                  file["hashes"]["sha256"], file["iv"]) == path.read_bytes()
+    else:
+        assert image["url"] == "mxc://example.org/image" and "file" not in image
+
+
+@pytest.mark.asyncio
 async def test_upload_error_does_not_disclose_exception(producer, tmp_path, caplog):
     path = tmp_path / "image.png"
     path.write_bytes(b"\x89PNG\r\n\x1a\nimage")
