@@ -366,6 +366,11 @@ class MemoryManager:
         return allowed
 
     @property
+    def prefetch_every_turn(self) -> bool:
+        """Project conversations recall even on short followups with no semantic signal."""
+        return "project" in self._provider_slots
+
+    @property
     def providers(self) -> list[MemoryProvider]:
         return list(self._providers)
 

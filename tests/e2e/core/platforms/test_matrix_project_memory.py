@@ -44,14 +44,15 @@ class MemoryJourney:
                               "expected": expected, "actual": replies[-1]})
         return event_id, actual
 
-    def turn(self, token, *, thread=None, unbound=False, tool=False):
+    def turn(self, token, *, thread=None, unbound=False, tool=False, body=None):
         room = self.driver.other_room_id if unbound else self.driver.room_id
+        script_token = token if body is None else "none"
+        body = f"[in:{token}] what do we know?" if body is None else body
         responses = [Text(f"done-{token}")]
         if tool:
             responses.insert(0, ToolCall("project_memory_recall", {"query": "kb", "bank": "team-kb"}))
-        self.director.script(token, *responses)
-        self.driver.standin.post(room, self.driver.user_id, f"[in:{token}] what do we know?",
-                                 thread_root=thread)
+        self.director.script(script_token, *responses)
+        event_id = self.driver.standin.post(room, self.driver.user_id, body, thread_root=thread)
         replies = wait_until(
             lambda: [event for event in self.driver.standin.bot_messages(room, thread_root=thread)
                      if f"done-{token}" in event["content"]["body"]],
@@ -61,8 +62,9 @@ class MemoryJourney:
             relation = replies[0]["content"]["m.relates_to"]
             assert relation["rel_type"] == "m.thread" and relation["event_id"] == thread
         self.gateway.wait_idle()
-        request = self.director.requests[token][0]
-        self.receipts.append({"turn": token, "expected": f"done-{token}", "actual": replies[0]})
+        request = self.director.requests[script_token][-1 if script_token == "none" else 0]
+        self.receipts.append({"turn": token, "body": body, "event_id": event_id,
+                              "expected": f"done-{token}", "actual": replies[0]})
         return request
 
     def syncs(self):
@@ -159,7 +161,17 @@ def test_matrix_project_memory_journey(tmp_path: Path) -> None:
                 wait_until(lambda: len(journey.syncs()) == 2, "tool turn shared sync")
                 journey.command("!project memory set retain-shared off", "settings updated")
                 journey.command("!project memory set retain-project on", "settings updated")
-                toggled = journey.turn("next", thread=thread)
+                before = len(journey.requests("/memories/recall"))
+                toggled = journey.turn("short", thread=thread, body="next")
+                context = current_context(toggled)
+                assert context.index("SHARED_FACT") < context.index("ALPHA_FACT") < context.index("TEAMKB_FACT")
+                assert context.count("ALPHA_FACT") == 1
+                recalls = journey.requests("/memories/recall")[before:]
+                assert len(recalls) == 2
+                assert {row["path"] for row in recalls} == {
+                    "/v1/default/banks/default-alpha/memories/recall",
+                    "/v1/default/banks/team-kb/memories/recall"}
+                assert all(row["body"]["query"] == "[admin] next" for row in recalls)
                 wait_until(lambda: len(journey.requests("/memories")) == 1, "project retain")
                 assert len(journey.syncs()) == 2
                 assert journey.requests("/memories")[0]["path"].endswith("/default-alpha/memories")

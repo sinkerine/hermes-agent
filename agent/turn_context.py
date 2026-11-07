@@ -966,8 +966,8 @@ def _memory_query_text(original_user_message: Any) -> str:
 def _memory_turn_start_and_prefetch(
     agent: Any, original_user_message: Any, turn_author: Optional[dict[str, Any]] = None,
 ) -> str:
-    """Notify memory providers of the new turn, then prefetch external memory once
-    before the tool loop (skipped on trivial prompts with no semantic signal).
+    """Notify providers, then prefetch once before the tool loop. Project conversations
+    recall every turn; other sessions skip trivial prompts with no semantic signal.
     Returns the prefetch text (``""`` when nothing was injected)."""
     if not agent._memory_manager:
         return ""
@@ -982,7 +982,7 @@ def _memory_turn_start_and_prefetch(
         )
     ext_prefetch_cache = ""
     with suppress(Exception):
-        if not is_trivial_prompt(_query):
+        if getattr(agent._memory_manager, "prefetch_every_turn", False) is True or not is_trivial_prompt(_query):
             ext_prefetch_cache = agent._memory_manager.prefetch_all(_query, session_id=agent.session_id) or ""
     # Deterministic recall indicator via _emit_status so the model can't silently
     # drop injected memory.
