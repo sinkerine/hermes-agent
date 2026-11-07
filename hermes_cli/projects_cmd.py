@@ -54,8 +54,26 @@ def build_parser(parent_subparsers: argparse._SubParsersAction) -> argparse.Argu
     project_sub("bind-board", "Bind a kanban board to a project").add_argument(
         "board", nargs="?", default="", help="Board slug (omit to unbind)"
     )
+    _build_memory_parser(sub)
     parser.set_defaults(_project_parser=parser)
     return parser
+
+
+def _build_memory_parser(sub):
+    memory = sub.add_parser("memory", help="Manage project memory banks")
+    actions = memory.add_subparsers(dest="memory_action", required=True)
+    for name in ("show", "init", "add", "remove", "set"):
+        parser = actions.add_parser(name)
+        parser.add_argument("project")
+        if name == "init":
+            parser.add_argument("--bank", default=None)
+        if name in ("add", "remove"):
+            parser.add_argument("bank")
+        if name == "add":
+            parser.add_argument("--recall-only", action="store_true")
+        if name == "set":
+            parser.add_argument("--retain-shared", choices=("on", "off"))
+            parser.add_argument("--retain-project", choices=("on", "off"))
 
 
 def projects_command(args: argparse.Namespace) -> int:
@@ -225,7 +243,57 @@ def _cmd_bind_board(args, conn, proj) -> str:
     return f"Bound {proj.slug} -> board {args.board}"
 
 
+@_with_project
+def _cmd_memory(args, conn, proj):
+    from agent.project_memory import ops
+    from hermes_cli.config import load_config
+    from hermes_cli.profiles import get_active_profile_name
+
+    config = load_config()
+
+    def show():
+        info = ops.overview(conn, proj, config)
+        lines = [f"Project memory: {proj.slug}", f"Service: {info.service_url or 'not configured'}"]
+        if info.service_error:
+            lines.append(f"Invalid service: {info.service_error}")
+        lines.extend(f"{b.bank_id} ({'rw' if b.writable else 'recall-only'})" for b in info.banks)
+        lines.extend((f"retain-shared: {'on' if info.settings.retain_shared else 'off'}",
+                      f"retain-project: {'on' if info.settings.retain_project else 'off'}"))
+        return "\n".join(lines)
+
+    def init():
+        row, _ = ops.init_bank(conn, proj, config, profile=get_active_profile_name(),
+                               bank_id=args.bank, actor="cli")
+        return f"Attached bank {row.bank_id}"
+
+    def add():
+        backend = ops.configured_backend(config)
+        try:
+            row, _, exists = ops.attach_bank(conn, proj, args.bank, recall_only=args.recall_only,
+                                             actor="cli", backend=backend)
+        finally:
+            if backend:
+                backend.close()
+        warning = " (warning: bank not known to service yet)" if exists is False else ""
+        return f"Attached bank {row.bank_id}{warning}"
+
+    def remove():
+        ops.detach_bank(conn, proj, args.bank)
+        return f"Detached bank {args.bank}; service data was not deleted"
+
+    def settings():
+        if args.retain_shared is None and args.retain_project is None:
+            raise ValueError("specify --retain-shared or --retain-project")
+        ops.update_settings(conn, proj, actor="cli",
+                            retain_shared=None if args.retain_shared is None else args.retain_shared == "on",
+                            retain_project=None if args.retain_project is None else args.retain_project == "on")
+        return show()
+
+    return {"show": show, "init": init, "add": add, "remove": remove, "set": settings}[args.memory_action]()
+
+
 _HANDLERS = {
+    "memory": _cmd_memory,
     "create": _cmd_create,
     "list": _cmd_list,
     "ls": _cmd_list,

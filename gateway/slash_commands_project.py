@@ -16,6 +16,7 @@ from gateway.project_routing import (
     runtime_projects_db, validate_project,
 )
 from gateway.session_identity import identity_of
+from gateway.slash_commands_project_memory import GatewayProjectMemoryCommandsMixin
 from gateway.slash_access import policy_for_runner_source
 from hermes_cli import projects_db as db
 
@@ -121,7 +122,7 @@ def _create_project(conn: sqlite3.Connection, root_setting: str | None, slug_arg
     return project, t("gateway.project.reused" if reused else "gateway.project.created", project=project.slug)
 
 
-class GatewayProjectCommandsMixin:
+class GatewayProjectCommandsMixin(GatewayProjectMemoryCommandsMixin):
     async def _handle_project_command(self, event: MessageEvent) -> str:
         denied = self._check_slash_access(event.source, "project")
         if denied:
@@ -132,11 +133,13 @@ class GatewayProjectCommandsMixin:
             return t("gateway.project.usage")
         command = tokens.pop(0).lower() if tokens else "info"
         handlers = {name: partial(self._project_work, name) for name in
-                    ("info", "list", "create", "bind", "unbind", "help")}
+                    ("info", "list", "create", "bind", "unbind", "help", "memory")}
         handler = handlers.get(command)
         if handler is None:
             return t("gateway.project.usage")
-        if command in {"create", "bind", "unbind"} and not policy_for_runner_source(self, event.source).is_admin(event.source.user_id):
+        mutates = command in {"create", "bind", "unbind"} or (
+            command == "memory" and bool(tokens) and tokens[0] in {"init", "add", "remove", "set"})
+        if mutates and not policy_for_runner_source(self, event.source).is_admin(event.source.user_id):
             return t("gateway.project.admin_only")
         try:
             async with self._async_profile_scope_for_source(event.source):
@@ -158,7 +161,8 @@ class GatewayProjectCommandsMixin:
                     key = binding_key(self, event.source)
                     operations = {"info": self._project_info, "list": self._project_list,
                                   "create": self._project_create, "bind": self._project_bind,
-                                  "unbind": self._project_unbind, "help": self._project_help}
+                                  "unbind": self._project_unbind, "help": self._project_help,
+                                  "memory": self._project_memory}
                     return operations[command](conn, key, event, args)
         return await asyncio.to_thread(work)
 

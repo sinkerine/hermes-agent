@@ -177,6 +177,7 @@ For native Anthropic auth, Hermes prefers Claude Code's own credential files whe
 | `GITHUB_TOKEN` | GitHub token for Skills Hub (higher API rate limits, skill publish) and the desktop app's update check (`GH_TOKEN` also honoured; without either, the desktop falls back to the `gh` CLI login, then anonymous) |
 | `HONCHO_API_KEY` | Cross-session user modeling ([honcho.dev](https://honcho.dev/)) |
 | `HONCHO_BASE_URL` | Base URL for self-hosted Honcho instances (default: Honcho cloud). No API key required for local instances |
+| `PROJECT_HINDSIGHT_API_KEY` | Optional Bearer token for the runtime profile’s self-hosted project memory service. Store in the profile `.env`; configure the URL with `project_memory.hindsight_url` in `config.yaml`. Independent of `HINDSIGHT_API_KEY` and the catalog plugin. See [Project memory banks](../user-guide/messaging/matrix.md#project-memory-banks). |
 | `HINDSIGHT_API_KEY` | Hindsight API key for graph-aware persistent memory ([hindsight.vectorize.io](https://hindsight.vectorize.io)) |
 | `HINDSIGHT_API_URL` | Base URL for the Hindsight API (default: `https://api.hindsight.vectorize.io`) |
 | `HINDSIGHT_TIMEOUT` | Timeout in seconds for Hindsight memory-provider API calls (default: `60`). Bump this if your Hindsight instance is slow to respond during `/sync` or `on_session_switch` and you're seeing timeouts in `errors.log`. |

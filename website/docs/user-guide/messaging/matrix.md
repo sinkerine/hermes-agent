@@ -1020,3 +1020,51 @@ An empty or unset root disables creation; binding existing projects still works.
 For manual Matrix threads, set `MATRIX_SESSION_SCOPE=room` and `MATRIX_AUTO_THREAD=false`. Each thread gets its own conversation and workspace pin; the room timeline has its own conversation. Rooms with two or fewer members are treated as DMs. A conversation that predates the binding keeps its old context until `!new`; changing the binding never migrates history. Deleted, archived, or unavailable projects fail with a clear reply rather than falling back to another workspace.
 
 `create`, `bind`, and `unbind` require admin access in addition to ordinary slash access. Set `platforms.matrix.extra.group_allow_admin_from` for rooms and `allow_admin_from` for DMs; allow regular users `project` through the corresponding `group_user_allowed_commands` or `user_allowed_commands` list to enable `info` and `list`. When the admin list for a scope is unset, every allowed user in that scope is treated as an admin. Configure explicit admin lists for shared bots. Projects remain inside the runtime profile selected by the bot or static `gateway.profile_routes`; `/project` has no dynamic `--profile` option.
+
+### Project memory banks
+
+This fork includes a provider-agnostic project memory core with an in-tree Hindsight backend. This placement is fork-local and is not upstreamable as-is; the backend can later move to a standalone plugin. Project memory applies only to gateway conversations whose immutable project pin is bound. CLI, TUI and Desktop conversations keep their existing memory behavior.
+
+Configure one self-hosted service per runtime profile in that profile's `config.yaml`:
+
+```yaml
+project_memory:
+  hindsight_url: "http://127.0.0.1:8888" # empty disables project memory
+  recall_budget: mid                   # low | mid | high
+  recall_max_tokens: 1024               # per bank
+  timeout: 10                          # seconds per request
+```
+
+If the server requires authentication, put `PROJECT_HINDSIGHT_API_KEY` in the profile's `.env`; Hermes sends it as a Bearer token. A server without authentication needs no key. This service configuration is independent of `memory.provider` and the catalog Hindsight plugin's `hindsight/config.json`; cloud and embedded-daemon modes are not used.
+
+In the bound room, use:
+
+```text
+!project memory
+!project memory init
+!project memory init team-alpha
+!project memory add reference --recall-only
+!project memory remove reference
+!project memory set retain-shared off
+!project memory set retain-project on
+```
+
+Info shows the service, banks in attach order, and both retain flags. Mutations require the same admin access as project binding; regular users with slash access may view info. An unbound room cannot manage memory. `init` creates a service bank and attaches it writable; the default ID is `<runtime-profile>-<project-slug>` and the service name is the project name. An explicit ID overrides that default. IDs are 1–128 letters, digits, dots, underscores, colons or hyphens, beginning with a letter or digit. No mission is set. Project creation never initializes a bank automatically, and the agent cannot manage banks.
+
+`add` attaches an existing bank, with a warning if the service does not know it yet. It also works before a service is configured. `--recall-only` prevents automatic writes to that bank. Reattaching a bank updates its writable flag without changing its order. `remove` only detaches; it never deletes service data. Deleting a project removes its local bank/settings rows, leaving service data intact.
+
+Every turn recalls from shared memory and every attached project bank. Banks are queried in parallel, then merged in attach order with duplicate texts removed. `project_memory_recall` lets the model search these banks explicitly. By default, `retain-shared` is **on** and `retain-project` is **off**: project banks are written externally until an admin enables project retention. When enabled, automatic project retention writes only to writable banks.
+
+Setting `retain-shared off` skips the shared external provider's automatic `sync_turn`, `on_session_end`, `on_pre_compress` (including its checkpoint), and `on_delegation` hooks for that project's conversations. Shared recall, `on_turn_start`, `on_session_switch`, explicit shared-provider tool calls, and the mirror of explicit built-in `memory` tool writes still run. Built-in `MEMORY.md` and `USER.md` storage is unaffected.
+
+Bank and retain-flag changes are read from `projects.db` at the next turn, including in existing threads, without restarting or rebuilding the system prompt. Profile-level service configuration changes affect new conversations through the normal agent-cache rebuild. Memory fails open: unavailable banks contribute no recall, a failing bank enters a five-minute cooldown with one warning per outage, and turns continue. Retain failures are logged. An unset service with attached banks is reported by the info command, not on every turn.
+
+The CLI manages the same profile database; choose the profile with `hermes -p <profile>`:
+
+```text
+hermes -p work project memory show alpha
+hermes -p work project memory init alpha --bank team-alpha
+hermes -p work project memory add alpha reference --recall-only
+hermes -p work project memory remove alpha reference
+hermes -p work project memory set alpha --retain-shared off --retain-project on
+```

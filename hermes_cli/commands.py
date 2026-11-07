@@ -84,7 +84,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
     # Session
     CommandDef("project", "Bind this room to a project workspace (info/list/create/bind/unbind)", "Session",
                gateway_only=True, desktop="messaging-only",
-               args_hint="[info|list|create <slug>|bind <project> [--force]|unbind]"),
+               args_hint="[info|list|create <slug>|bind <project> [--force]|unbind|memory]"),
     CommandDef("start", "Acknowledge platform start pings without a reply", "Session",
                gateway_only=True, busy_policy="dispatch", busy_handler="start"),
     CommandDef("new", "Start a new session (fresh session ID + history)", "Session",

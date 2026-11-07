@@ -3315,3 +3315,17 @@ gateway:
 ```
 
 The gateway reads this setting from its own launch configuration. Creation scaffolds `AGENTS.md` only when absent and a `sources/` directory. Routing requires the local terminal backend; cwd selects working context and is not a sandbox. Admin-only mutations follow the platform slash policy: when the relevant admin list is unset, every allowed user is considered an admin. Set explicit lists on shared bots. Rebinding needs `--force` and affects new conversations; existing ones keep their workspace until `/new` or a new thread. Unbinding deletes neither files nor transcripts. See [Matrix project rooms](messaging/matrix.md#project-rooms).
+
+### Project memory service
+
+The runtime profile's `project_memory` section configures a self-hosted service independently of `gateway.project_routing.workspace_root` and `memory.provider`:
+
+```yaml
+project_memory:
+  hindsight_url: ""       # http(s) base URL; empty disables project memory
+  recall_budget: mid      # low | mid | high
+  recall_max_tokens: 1024 # positive integer, per bank
+  timeout: 10             # positive seconds per request
+```
+
+The optional secret `PROJECT_HINDSIGHT_API_KEY` belongs in the profile's `.env`. Bank attachments and `retain-shared` (default on) / `retain-project` (default off) are stored per project in `projects.db`, and admin command changes take effect from the next turn. Service configuration affects new conversations through the agent cache. This fork-local backend applies only to project-bound gateway conversations and fails open when the service is unavailable. See [Project memory banks](messaging/matrix.md#project-memory-banks) for commands, retention semantics, and service setup.

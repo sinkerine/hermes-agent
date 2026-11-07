@@ -345,3 +345,15 @@ Set `approvals.destructive_slash_confirm: false` in `~/.hermes/config.yaml` to d
 `/project` or `/project info` shows the room binding and current conversation's project pin. `/project list` lists non-archived projects in the runtime profile. `/project bind <id|slug> [--force]` binds an existing project; `/project create <slug> [--name "Display"] [--force]` creates a workspace under the existing `gateway.project_routing.workspace_root` and binds it. `/project unbind` removes only the binding; `/project help` shows usage. Matrix also accepts `!project`.
 
 Mutations require admin access under the platform's slash policy. An unset admin list treats every allowed user as an admin in that scope; set explicit admin lists for shared bots. Rebinding needs `--force`; existing conversations keep their workspace until `/new` or a new thread. Unbinding deletes no files or transcripts. Routing requires the local terminal backend and sets cwd and context discovery; cwd is not a sandbox. See [Matrix project rooms](../user-guide/messaging/matrix.md#project-rooms) for configuration and thread behavior.
+
+`/project memory` shows the bound room project's memory service, ordered banks, and retain flags. Admins can manage them with:
+
+```text
+/project memory init [<bank-id>]
+/project memory add <bank-id> [--recall-only]
+/project memory remove <bank-id>
+/project memory set retain-shared on|off
+/project memory set retain-project on|off
+```
+
+Matrix accepts the same commands with `!project memory`. `init` creates a service bank before attaching it; `add` can attach before service setup and warns about unknown banks. `remove` detaches without deleting service data. Unbound rooms are refused; info is available to regular users with project slash access. Defaults retain to shared memory, but not project banks. Changes apply from the next turn, including existing threads. The equivalent CLI is `hermes project memory show|init|add|remove|set`; see [Project memory banks](../user-guide/messaging/matrix.md#project-memory-banks) for exact CLI syntax and the fork-local service configuration.

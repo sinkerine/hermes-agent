@@ -43,7 +43,23 @@ approval:
     second_other: "{count} saniye"
 gateway:
   project:
-    usage: "/project [info|list|create <slug> [--name \"Display\"] [--force]|bind <id|slug> [--force]|unbind|help]"
+    usage: "/project [info|list|create <slug> [--name \"Display\"] [--force]|bind <id|slug> [--force]|unbind|help]\n/project memory [init [<bank-id>]|add <bank-id> [--recall-only]|remove <bank-id>|set retain-shared|retain-project on|off]"
+    memory:
+      not_bound: "This room has no project binding. Bind a project before managing memory."
+      no_service: "not configured"
+      info: "Project memory: {project}\nService: {service}\nretain-shared: {shared}\nretain-project: {project_retain}"
+      bank: "{bank} ({mode})"
+      empty: "No memory banks attached."
+      attached: "Attached bank {bank}."
+      detached: "Detached bank {bank}. No service data was deleted."
+      unknown_bank: "Warning: bank {bank} is not known to the service yet."
+      updated: "Project memory retain settings updated; changes apply from the next turn."
+      error:
+        no_service: "Project memory service is not configured. Set project_memory.hindsight_url first."
+        invalid_service: "Invalid project memory service configuration: {error}"
+        invalid_bank: "Invalid bank id: {bank}. Use 1–128 letters, digits, dots, underscores, colons or hyphens, starting with a letter or digit."
+        service_error: "Project memory service request failed: {error}. You may retry safely."
+        not_attached: "Bank {bank} is not attached to this project."
     admin_only: "Only an admin may create, bind, or unbind projects."
     info_bound: "Room project: {name} ({project}, {id})\nFolder: {path}\nRuntime profile home: {profile}"
     info_unbound: "Room project: unbound\nRuntime profile home: {profile}"
