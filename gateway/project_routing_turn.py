@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from gateway.config import Platform
 from gateway.project_routing import (
@@ -11,6 +11,9 @@ from gateway.project_routing import (
 )
 from gateway.session import SessionEntry, SessionSource
 from gateway.session_lifecycle import SessionRouteChangedError
+
+if TYPE_CHECKING:
+    from agent.project_memory.provider import ProjectMemoryTarget
 
 logger = logging.getLogger("gateway.run")
 
@@ -65,3 +68,14 @@ def stamp_turn_project_cwd(runner: Any, session_entry: SessionEntry) -> None:
     pin = project_pin_for_key(runner, session_entry.session_key, session_entry.session_id)
     if pin and pin.bound:
         runner.session_store.update_session_row_cwd(session_entry.session_key, session_entry.session_id, pin.cwd)
+
+
+def project_memory_target_for_pin(
+    runner: Any, source: SessionSource, pin: Optional[ProjectPin],
+) -> Optional[ProjectMemoryTarget]:
+    """Resolve an explicit runtime DB target without probing the service or store."""
+    from agent.project_memory.provider import ProjectMemoryTarget
+    from gateway.project_routing import runtime_projects_db
+    if source.platform == Platform.LOCAL or pin is None or not pin.bound:
+        return None
+    return ProjectMemoryTarget(pin.project_id, pin.slug, pin.name, runtime_projects_db(runner, source))

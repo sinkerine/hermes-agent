@@ -456,7 +456,7 @@ def test_agent_whose_provider_instance_is_refused_is_told_and_runs_without_it(ho
     shared = _InstanceScopedProvider()
     _manager(alpha_home, shared)
     monkeypatch.setattr("plugins.memory.load_memory_provider", lambda name: shared)
-    monkeypatch.setattr(agent_init, "_memory_provider_init_kwargs", lambda agent, platform: {
+    monkeypatch.setattr("agent.agent_init_memory_provider._memory_provider_init_kwargs", lambda agent, platform: {
         "session_id": "s-beta", "platform": platform, "hermes_home": str(beta_home)})
     agent = StartupAgent("api_server")
     with _Scope(beta_home), caplog.at_level(logging.DEBUG):

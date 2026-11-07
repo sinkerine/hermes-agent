@@ -52,7 +52,7 @@ class GatewayBackgroundMixin:
         _thread_metadata = self._thread_metadata_for_source(source, event_message_id)
 
         from gateway.project_routing import ProjectRouteError, project_turn_scope, revalidate_pin
-        from gateway.project_routing_turn import project_pin_for_key
+        from gateway.project_routing_turn import project_memory_target_for_pin, project_pin_for_key
         from gateway.session_lifecycle import SessionRouteChangedError
 
         def resolve_pin():
@@ -130,6 +130,7 @@ class GatewayBackgroundMixin:
                         provider_require_parameters=pr.get("require_parameters", False),
                         provider_data_collection=pr.get("data_collection"),
                         session_id=task_id, cwd=pin.cwd if pin and pin.bound else None,
+                        project_memory=project_memory_target_for_pin(self, source, pin),
                         platform=platform_key,
                         **{k: getattr(source, k) for k in (
                             "user_id", "user_id_alt", "user_name", "chat_id", "chat_name", "chat_type", "thread_id",
