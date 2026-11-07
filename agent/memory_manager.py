@@ -1,7 +1,7 @@
 """MemoryManager — fans the agent's memory hooks out to registered providers.
 
-The builtin provider is always allowed; only ONE external plugin provider may be
-registered at a time (tool-schema bloat, conflicting backends).
+The builtin provider is always allowed; one external plugin and one project provider
+may coexist (each occupies its own registration slot).
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Literal, Optional
 
 from agent.redact import redact_for_egress
 
@@ -197,7 +197,7 @@ class _StuckCallGate:
 
 
 class MemoryManager:
-    """Builtin provider (always first) plus at most one external provider.
+    """Builtin provider plus at most one provider per external/project slot.
 
     Failures in one provider never block the other: every fan-out hook logs and
     swallows per-provider exceptions.
@@ -214,6 +214,9 @@ class MemoryManager:
         self._tool_to_provider: dict[str, MemoryProvider] = {}
         self._external_prefetch_spill_config: Optional[dict[str, Any]] = None
         self._has_external: bool = False
+        self._provider_slots: dict[str, MemoryProvider] = {}
+        self._auto_retain_policy: Optional[Callable[[MemoryProvider], bool]] = None
+        self._auto_retain_policy_warned = False
         timeout = external_prefetch_timeout
         timeout = _EXTERNAL_PREFETCH_TIMEOUT_S if timeout is None else float(timeout)
         if timeout <= 0:
@@ -267,18 +270,25 @@ class MemoryManager:
         self._tool_call_keywords_cache.pop(id(provider), None)
         self._providers = [p for p in self._providers if p is not provider]
         self._tool_to_provider = {t: p for t, p in self._tool_to_provider.items() if p is not provider}
+        self._provider_slots = {slot: p for slot, p in self._provider_slots.items() if p is not provider}
         self._has_external = any(p.name != "builtin" for p in self._providers)
 
-    def add_provider(self, provider: MemoryProvider) -> None:
-        """Register a provider; builtin always accepted, only ONE external allowed."""
-        if provider.name != "builtin" and self._has_external:
-            existing = next((p.name for p in self._providers if p.name != "builtin"), "unknown")
-            logger.warning(
-                "Rejected memory provider '%s' — external provider '%s' is "
-                "already registered. Only one external memory provider is "
-                "allowed at a time. Configure which one via memory.provider "
-                "in config.yaml.", provider.name, existing,
-            )
+    def add_provider(self, provider: MemoryProvider, *, slot: Literal["external", "project"] = "external") -> None:
+        """Register a provider; builtin is exempt from the one-provider-per-slot limit."""
+        if slot not in ("external", "project"):
+            raise ValueError(f"Unknown memory provider slot: {slot!r}")
+        existing = self._provider_slots.get(slot)
+        if provider.name != "builtin" and existing is not None:
+            if slot == "external":
+                logger.warning(
+                    "Rejected memory provider '%s' — external provider '%s' is "
+                    "already registered. Only one external memory provider is "
+                    "allowed at a time. Configure which one via memory.provider "
+                    "in config.yaml.", provider.name, existing.name,
+                )
+            else:
+                logger.warning("Rejected memory provider '%s' — project provider '%s' is already registered",
+                               provider.name, existing.name)
             return
 
         # Load schemas BEFORE mutating any manager state: a provider whose schema
@@ -298,6 +308,7 @@ class MemoryManager:
                 spill_config["max_chars"] = max(spill_config["max_chars"] * 10, 100_000)
             self._external_prefetch_spill_config = spill_config
             self._has_external = True
+            self._provider_slots[slot] = provider
 
         self._providers.append(provider)
 
@@ -328,6 +339,31 @@ class MemoryManager:
                 self._tool_to_provider[tool_name] = provider
 
         logger.info("Memory provider '%s' registered (%d tools)", provider.name, len(schemas))
+
+    def set_auto_retain_policy(self, policy: Optional[Callable[[MemoryProvider], bool]]) -> None:
+        """Control automatic writes while preserving recall and explicit memory writes."""
+        self._auto_retain_policy = policy
+        self._auto_retain_policy_warned = False
+
+    def _auto_retain_providers(self) -> list[MemoryProvider]:
+        """Keep the builtin store independent; policy failures deny external egress."""
+        policy = self._auto_retain_policy
+        if policy is None:
+            return list(self._providers)
+        allowed = []
+        for provider in self._providers:
+            if provider.name == "builtin":
+                allowed.append(provider)
+                continue
+            try:
+                if policy(provider):
+                    allowed.append(provider)
+            except Exception as exc:
+                if not self._auto_retain_policy_warned:
+                    logger.warning("Memory auto-retain policy failed; denying non-builtin automatic writes: %s",
+                                   exc, exc_info=True)
+                    self._auto_retain_policy_warned = True
+        return allowed
 
     @property
     def providers(self) -> list[MemoryProvider]:
@@ -454,7 +490,7 @@ class MemoryManager:
         (tool outputs included) go through ``_redact_for_provider`` so secrets are never archived
         verbatim in a provider's store (#115104).
         """
-        providers = list(self._providers)
+        providers = self._auto_retain_providers()
         clean_user_content = self._strip_skill_scaffolding(user_content) if providers else None
         if not clean_user_content or not self._owner_allows("sync_turn"):
             return
@@ -631,7 +667,7 @@ class MemoryManager:
             return
         messages = _redact_messages_for_egress(messages or [])
         self._each_provider("on_session_end failed", lambda p: p.on_session_end(messages), level=logging.WARNING,
-                            exc_info=True)
+                            providers=self._auto_retain_providers(), exc_info=True)
 
     def commit_session_boundary_async(self, messages: list[dict[str, Any]], *, new_session_id: str,
                                       parent_session_id: str = "", reason: str = "new_session") -> None:
@@ -690,7 +726,7 @@ class MemoryManager:
 
     def supports_pre_compress_checkpoint(self, api_version: int = PRE_COMPRESS_CHECKPOINT_API_VERSION) -> bool:
         """Return whether an active provider guarantees checkpoint API support."""
-        versions = (self._checkpoint_api_version(p) for p in self._providers)
+        versions = (self._checkpoint_api_version(p) for p in self._auto_retain_providers())
         return any(v is not None and v >= api_version for v in versions)
 
     def on_pre_compress(self, messages: list[dict[str, Any]], *,
@@ -711,7 +747,7 @@ class MemoryManager:
         from agent.message_metadata import without_withheld_prompts
         messages, evidence_messages = _redact_for_provider(
             without_withheld_prompts(messages or []), without_withheld_prompts(evidence_messages))
-        for provider in self._providers:
+        for provider in self._auto_retain_providers():
             version = self._checkpoint_api_version(provider)
             if version is None:
                 version = _LEGACY_PRE_COMPRESS_API_VERSION
@@ -838,6 +874,7 @@ class MemoryManager:
         self._each_provider(
             "on_delegation failed",
             lambda p: p.on_delegation(task, result, child_session_id=child_session_id, **kwargs),
+            providers=self._auto_retain_providers(),
         )
 
     def claim_teardown(self, *, session_end: bool) -> bool:
