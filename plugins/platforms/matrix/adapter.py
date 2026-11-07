@@ -78,7 +78,7 @@ from gateway.platforms.base import (
 from gateway.platforms.base import transcode_to_ogg_opus
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 from gateway.platforms.helpers import ThreadParticipationTracker
-from plugins.platforms.matrix import adapter_html
+from plugins.platforms.matrix import adapter_html, event_dedup
 from plugins.platforms.matrix.voice_mention import ParkedVoices, VoiceGate, has_voice_marker, is_voice_event
 
 logger = logging.getLogger(__name__)
@@ -768,18 +768,6 @@ class MatrixAdapter(BasePlatformAdapter):
             except re.error as exc:
                 logger.warning("Matrix: ignoring invalid MATRIX_IGNORE_USER_PATTERNS entry %r: %s", pattern, exc)
 
-    def _is_duplicate_event(self, event_id) -> bool:
-        """Return True if this event was already processed. Tracks the ID otherwise."""
-        if not event_id:
-            return False
-        if event_id in self._processed_events_set:
-            return True
-        if len(self._processed_events) == self._processed_events.maxlen:
-            self._processed_events_set.discard(self._processed_events[0])
-        self._processed_events.append(event_id)
-        self._processed_events_set.add(event_id)
-        return False
-
     @staticmethod
     def _extra_truthy(config, key: str, env_name: str, default: str) -> bool:
         """Scoped env var → ``config.extra[key]`` (YAML, per profile) → ``default``; true/1/yes semantics."""
@@ -1195,6 +1183,7 @@ class MatrixAdapter(BasePlatformAdapter):
         self._client = client
         if not await self._connect_authenticate(client, api):
             return False
+        await event_dedup.bind_event_receipts(self, self._store_dir, self._homeserver, self._user_id)
         if self._encryption and not await self._connect_setup_e2ee(client, api, state_store):
             return False
         from mautrix.client import InternalEventType as IntEvt
@@ -1929,7 +1918,7 @@ class MatrixAdapter(BasePlatformAdapter):
             logger.info("Matrix: ignoring message from unauthorized room %s", room_id)
             return
         event_id = str(getattr(event, "event_id", ""))
-        if self._is_duplicate_event(event_id):
+        if await event_dedup.is_duplicate_event(self, event_id):
             return
         # Startup grace: ignore old messages replayed by the initial sync.
         event_ts = _matrix_event_timestamp_seconds(event)
@@ -2422,7 +2411,7 @@ class MatrixAdapter(BasePlatformAdapter):
         if self._is_self_sender(sender):
             return
         event_id = str(getattr(event, "event_id", ""))
-        if self._is_duplicate_event(event_id):
+        if await event_dedup.is_duplicate_event(self, event_id):
             return
         room_id = str(getattr(event, "room_id", ""))
         content = getattr(event, "content", None)

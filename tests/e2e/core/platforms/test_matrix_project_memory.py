@@ -74,6 +74,10 @@ class MemoryJourney:
         return [row for row in self.hindsight.requests() if row["method"] == "POST"
                 and row["path"].endswith(suffix)]
 
+    def bank_attachment_requests(self):
+        return [row for row in self.hindsight.requests() if row["method"] == "PUT"
+                or (row["method"] == "GET" and row["path"].endswith("/config"))]
+
 
 def current_context(request):
     return Director._text([message for message in request["messages"] if message["role"] == "user"][-1])
@@ -111,6 +115,7 @@ def test_matrix_project_memory_journey(tmp_path: Path) -> None:
                 stream.write("\nPROJECT_HINDSIGHT_API_KEY=test-key\n")
             dotenv.chmod(0o600)
             journey = MemoryJourney(driver, director, gateway, hindsight)
+            restart_hindsight_request_index = None
             try:
                 driver.arm_readiness()
                 gateway.start(timeout=120)
@@ -179,9 +184,12 @@ def test_matrix_project_memory_journey(tmp_path: Path) -> None:
                 retained = len(journey.requests("/memories"))
                 assert retained == 3
                 assert len(journey.syncs()) == 3
+                bank_requests_before_restart = journey.bank_attachment_requests()
+                restart_hindsight_request_index = len(hindsight.requests())
                 driver.arm_readiness()
                 gateway.start(timeout=120)
                 restarted = journey.turn("restarted", thread=thread)
+                assert journey.bank_attachment_requests() == bank_requests_before_restart
                 assert "ALPHA_FACT" in current_context(restarted)
                 assert "TEAMKB_FACT" not in current_context(restarted)
                 wait_until(lambda: len(journey.requests("/memories")) == retained + 1, "persisted project retain")
@@ -196,10 +204,12 @@ def test_matrix_project_memory_journey(tmp_path: Path) -> None:
                 assert "default-alpha (rw)" in result.stdout and "team-kb" not in result.stdout
                 assert "retain-shared: off" in result.stdout and "retain-project: on" in result.stdout
                 assert gateway.alive() and len(gateway.pids) == 2
+                assert journey.bank_attachment_requests() == bank_requests_before_restart
             finally:
                 gateway.stop()
                 evidence = {"steps": journey.receipts, "model_requests": director.requests,
                             "hindsight_requests": hindsight.requests(), "gateway_pids": gateway.pids,
+                            "restart_hindsight_request_index": restart_hindsight_request_index,
                             "matrix_calls": [asdict(call) for call in driver.standin.calls_after(0)],
                             "wording": "Mutation receipts followed by info; rw means read-write."}
                 (tmp_path / "journey-receipts.json").write_text(json.dumps(evidence, indent=2))
