@@ -64,6 +64,24 @@ CREATE TABLE IF NOT EXISTS chat_project_bindings (
     PRIMARY KEY (platform, transport_profile, chat_id)
 );
 
+CREATE TABLE IF NOT EXISTS project_memory_banks (
+    project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    bank_id     TEXT NOT NULL,
+    position    INTEGER NOT NULL,
+    writable    INTEGER NOT NULL DEFAULT 1,
+    added_by    TEXT,
+    added_at    INTEGER NOT NULL,
+    PRIMARY KEY (project_id, bank_id)
+);
+
+CREATE TABLE IF NOT EXISTS project_memory_settings (
+    project_id      TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+    retain_shared   INTEGER NOT NULL DEFAULT 1,
+    retain_project  INTEGER NOT NULL DEFAULT 0,
+    updated_by      TEXT,
+    updated_at      INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS project_meta (
     key    TEXT PRIMARY KEY,
     value  TEXT
@@ -82,6 +100,7 @@ CREATE TABLE IF NOT EXISTS discovered_repos (
 # Lowercase alphanumerics, hyphens, underscores; 1-64 chars; no leading separator. Strict enough to
 # stop traversal/path separators, loose enough for kebab-case. Display formatting lives in ``name``.
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9\-_]{0,63}$")
+_BANK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 # Deterministic branch slug: lowercase, separators collapsed, capped.
 _BRANCH_SAFE_RE = re.compile(r"[^a-z0-9._-]+")
 _INITIALIZED_PATHS: set[str] = set()
@@ -222,6 +241,109 @@ def delete_chat_binding(
             (platform, transport_profile, chat_id),
         )
     return cursor.rowcount > 0
+
+
+@dataclass(frozen=True)
+class ProjectMemoryBank:
+    project_id: str
+    bank_id: str
+    position: int
+    writable: bool
+    added_by: Optional[str]
+    added_at: int
+
+
+@dataclass(frozen=True)
+class ProjectMemorySettings:
+    project_id: str
+    retain_shared: bool = True
+    retain_project: bool = False
+
+
+def normalize_bank_id(bank_id: str) -> str:
+    """Strip and validate a service bank identifier, preserving its case."""
+    normalized = bank_id.strip()
+    if not _BANK_ID_RE.fullmatch(normalized):
+        raise ValueError(f"invalid bank id {bank_id!r}: must match {_BANK_ID_RE.pattern}")
+    return normalized
+
+
+def _load_memory_bank(row: sqlite3.Row) -> ProjectMemoryBank:
+    return ProjectMemoryBank(**{**dict(row), "writable": bool(row["writable"])})
+
+
+def list_memory_banks(conn: sqlite3.Connection, project_id: str) -> list[ProjectMemoryBank]:
+    rows = conn.execute(
+        "SELECT * FROM project_memory_banks WHERE project_id = ? ORDER BY position", (project_id,),
+    )
+    return [_load_memory_bank(row) for row in rows]
+
+
+def add_memory_bank(
+    conn: sqlite3.Connection, project_id: str, bank_id: str, *, writable: bool = True,
+    added_by: Optional[str] = None,
+) -> tuple[ProjectMemoryBank, bool]:
+    """Append a bank or update its writable flag, joining a caller-owned transaction."""
+    bank_id = normalize_bank_id(bank_id)
+    with contextlib.nullcontext(conn) if conn.in_transaction else write_txn(conn):
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise ValueError(f"no such project: {project_id}")
+        existing = conn.execute(
+            "SELECT * FROM project_memory_banks WHERE project_id = ? AND bank_id = ?", (project_id, bank_id),
+        ).fetchone()
+        conn.execute(
+            "INSERT INTO project_memory_banks (project_id, bank_id, position, writable, added_by, added_at) "
+            "SELECT ?, ?, COALESCE(MAX(position), -1) + 1, ?, ?, ? FROM project_memory_banks WHERE project_id = ? "
+            "ON CONFLICT(project_id, bank_id) DO UPDATE SET writable = excluded.writable",
+            (project_id, bank_id, int(writable), added_by, _now(), project_id),
+        )
+        row = conn.execute(
+            "SELECT * FROM project_memory_banks WHERE project_id = ? AND bank_id = ?", (project_id, bank_id),
+        ).fetchone()
+    return _load_memory_bank(row), existing is None
+
+
+def remove_memory_bank(conn: sqlite3.Connection, project_id: str, bank_id: str) -> bool:
+    """Detach a bank and restore dense recall positions, without touching the service."""
+    bank_id = normalize_bank_id(bank_id)
+    with contextlib.nullcontext(conn) if conn.in_transaction else write_txn(conn):
+        cursor = conn.execute(
+            "DELETE FROM project_memory_banks WHERE project_id = ? AND bank_id = ?", (project_id, bank_id),
+        )
+        if cursor.rowcount:
+            conn.executemany(
+                "UPDATE project_memory_banks SET position = ? WHERE project_id = ? AND bank_id = ?",
+                [(position, project_id, bank.bank_id) for position, bank in enumerate(list_memory_banks(conn, project_id))],
+            )
+    return cursor.rowcount > 0
+
+
+def get_memory_settings(conn: sqlite3.Connection, project_id: str) -> ProjectMemorySettings:
+    row = conn.execute("SELECT * FROM project_memory_settings WHERE project_id = ?", (project_id,)).fetchone()
+    if row is None:
+        return ProjectMemorySettings(project_id)
+    return ProjectMemorySettings(project_id, bool(row["retain_shared"]), bool(row["retain_project"]))
+
+
+def set_memory_settings(
+    conn: sqlite3.Connection, project_id: str, *, retain_shared: Optional[bool] = None,
+    retain_project: Optional[bool] = None, updated_by: Optional[str] = None,
+) -> ProjectMemorySettings:
+    """Update supplied retain flags, joining a caller-owned transaction."""
+    with contextlib.nullcontext(conn) if conn.in_transaction else write_txn(conn):
+        if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+            raise ValueError(f"no such project: {project_id}")
+        current = get_memory_settings(conn, project_id)
+        conn.execute(
+            "INSERT INTO project_memory_settings (project_id, retain_shared, retain_project, updated_by, updated_at) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET "
+            "retain_shared = excluded.retain_shared, retain_project = excluded.retain_project, "
+            "updated_by = excluded.updated_by, updated_at = excluded.updated_at",
+            (project_id, int(current.retain_shared if retain_shared is None else retain_shared),
+             int(current.retain_project if retain_project is None else retain_project), updated_by, _now()),
+        )
+        settings = get_memory_settings(conn, project_id)
+    return settings
 
 
 @dataclass
