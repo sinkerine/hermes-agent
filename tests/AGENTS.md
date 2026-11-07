@@ -188,9 +188,17 @@ the platform extra and skip the journey even when the PM environment has it.
 
 ```bash
 python -m pm.build_env --source . --out .venv --group dev --group test --extra matrix
+HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/e2e/core/platforms/test_matrix_project_memory.py -v
 HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/e2e/core/platforms/test_matrix_project_routing.py -v
 HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/e2e/core/platforms/test_matrix_standin_smoke.py -v
 ```
+
+**When to run.** The sandbox feature E2E for a feature runs **when the feature is first added**
+(its introducing PR or branch must show it passing with the platform extra installed).
+**Future pushes and deployments do not require re-running it.** Existing unit tests,
+including the feature's own unit tests, still run on every push via `scripts/run_tests.sh`
+and `python scripts/check`. Re-run the journey when you change the feature's turn wiring,
+its stand-ins, or the gateway paths it drives.
 
 Assert on delivered stand-in messages and recorded model requests (system prompts, history,
 actual tool results), not log text. Use production DB/recording seams for session identity.
