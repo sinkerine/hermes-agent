@@ -1295,20 +1295,19 @@ DEFAULT_CONFIG = {
             "info_log_min_delta_mb": 0.0,
         },
     },
+    "project_memory": {"hindsight_url": "", "recall_budget": "mid",
+                       "recall_max_tokens": 1024, "timeout": 10},
     "memory": {  # Persistent memory — bounded curated memory injected into the system prompt
         "memory_enabled": True,
         "user_profile_enabled": True,
         "prefetch_spill_enabled": False,  # External recall opt-in to hooks.output_spill.
-        # Approval gate for memory writes on BOTH foreground turns and the background review fork.
-        # true = foreground writes prompt inline; background writes are staged (/memory
-        # pending|approve <id>|reject <id>). To disable memory: memory_enabled.
+        # Foreground writes prompt inline; background writes are staged for /memory approval.
         "write_approval": False,
         "memory_char_limit": 2200,   # ~800 tokens at 2.75 chars/token
         "user_char_limit": 1375,     # ~500 tokens at 2.75 chars/token
         # Periodic built-in memory review; 0 when an external provider auto-extracts.
         "nudge_interval": 10,
-        # One external provider: bundled (retaindb, byterover) or catalog-installed (honcho,
-        # hindsight, supermemory, mem0, openviking, holographic). Empty = built-in only.
+        # One bundled or catalog external provider; empty = built-in only.
         "provider": "",
     },
     # Subagent delegation: `backend` = task-routing strategy ("default": keys below), `backends.<name>` = its settings.
@@ -2930,7 +2929,8 @@ OPTIONAL_ENV_VARS = OptionalEnvVars({
         "https://app.honcho.dev", tools=["honcho_context"]),
     "HONCHO_BASE_URL": _tool("Base URL for self-hosted Honcho instances (no API key needed)",
         "Honcho base URL (e.g. http://localhost:8000)", password=None),
-    # ── Hindsight ──
+    "PROJECT_HINDSIGHT_API_KEY": _tool("API key for project Hindsight banks",
+        "Project Hindsight API key", "https://hindsight.vectorize.io"),
     "HINDSIGHT_API_KEY": _tool("Hindsight API key for graph-aware persistent memory",
         "Hindsight API key", "https://hindsight.vectorize.io", tools=["hindsight_recall"]),
     "HINDSIGHT_API_URL": _tool(
