@@ -142,6 +142,10 @@ Large modules use a **facade** for public entry points and imports, plus **sibli
   helpers.
 - **Commits and PRs:** rebase onto `main` before merging (a squash from a stale branch silently
   reverts newer fixes); 1–2 invariant tests per fix, proven red on the base.
+- **Desktop E2E:** always ignore Hermes desktop-related E2E tests when planning, running, or
+  validating changes, unless the user explicitly requests them. This includes desktop core,
+  visual regression, update, and desktop installer/lifecycle E2E suites. Continue running
+  relevant non-desktop E2E and unit/component tests.
 - **Tests:** always `scripts/run_tests.sh`, never bare `pytest`; behaviour contracts, never
   change-detectors or source-reading tests; host-specific behaviour is tested on that host with
   `@pytest.mark.platforms(...)`, never by faking `sys.platform`; tests never write to `~/.hermes/`.
