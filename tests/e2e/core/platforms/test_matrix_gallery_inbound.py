@@ -49,6 +49,7 @@ def test_matrix_gallery_one_turn_with_ordered_media_and_failures(tmp_path: Path)
         with FakeLLMServer(director) as llm:
             config = driver.gateway_config()
             config["agent"] = {"image_input_mode": "native"}
+            config["model"] = {"supports_vision": True}
             env = {**driver.gateway_env(), "MATRIX_REQUIRE_MENTION": "true"}
             gateway = GatewayUnderTest(tmp_path, llm_base_url=llm.base_url, config=config,
                                        env=env, ready=driver.connected)
