@@ -74,25 +74,25 @@ The filesystem is canonical. Entry points:
 
 ```
 hermes-agent/
-├── run_agent.py          # AIAgent facade; the turn loop lives in agent/turn_*.py
-├── model_tools.py        # Tool orchestration, discover_builtin_tools(), handle_function_call()
-├── toolsets.py           # TOOLSETS dict, _HERMES_CORE_TOOLS
-├── cli.py                # HermesCLI (REPL, slash dispatch) + hermes_cli/cli_*_mixin.py
-├── hermes_state.py       # SessionDB facade; hermes_state_*.py siblings
-├── hermes_constants.py   # get_hermes_home(), display_hermes_home() — profile-aware paths
-├── agent/                # turn loop phases, providers, memory, compression, prompt builder
-├── hermes_cli/           # CLI subcommands, setup, config, plugins loader, updater, web_routers/
-├── tools/                # Tool implementations (tools/registry.py) + environments/ backends
-├── gateway/              # run.py facade + run_*.py phases + session*.py + platforms/
-├── plugins/              # memory/, context_engine/, model-providers/, kanban/, image_gen/, ...
-├── skills/               # Built-in skills (by category)   optional-skills/: shipped, not active
-├── ui-tui/, tui_gateway/ # Ink terminal UI + its Python JSON-RPC backend (also serves Desktop)
-├── apps/desktop/         # Electron desktop app (+ apps/shared)   web/: dashboard SPA
-├── cron/                 # jobs.py + scheduler.py (+ scheduler_*.py)
-├── pm/, hermes_platform/ # dependency/environment manager; machine facts + executable lookup
-├── scripts/              # check, run_tests.sh, code_health/, ci/
-├── website/              # Docusaurus docs (developer-guide/ holds the long-form area docs)
-└── tests/                # Pytest suite, mirrors the source tree
+├── run_agent.py         # AIAgent facade; agent/turn_*.py loop
+├── model_tools.py       # discover_builtin_tools(), handle_function_call()
+├── toolsets.py          # TOOLSETS, _HERMES_CORE_TOOLS
+├── cli.py               # HermesCLI + hermes_cli/cli_*_mixin.py
+├── hermes_state.py      # SessionDB + hermes_state_*.py
+├── hermes_constants.py  # profile-aware home paths
+├── agent/               # turns, providers, memory, compression, prompts
+├── hermes_cli/          # CLI, setup, config, plugins, updater, web_routers/
+├── tools/               # registry.py + environments/ backends
+├── gateway/             # run.py + run_*.py, session*.py, platforms/
+├── plugins/             # memory, context_engine, model-providers, kanban, image_gen
+├── skills/              # active; optional-skills/: shipped, inactive
+├── ui-tui/, tui_gateway/ # Ink UI + Python JSON-RPC (also Desktop)
+├── apps/desktop/        # Electron (+ apps/shared); web/: dashboard
+├── cron/                # jobs.py + scheduler*.py
+├── pm/, hermes_platform/ # environments; machine facts and executable lookup
+├── scripts/             # check, run_tests.sh, code_health/, ci/
+├── website/             # Docusaurus; developer-guide/ for area detail
+└── tests/               # Pytest, mirrors source
 ```
 
 **User state:** `~/.hermes/config.yaml` (settings), `.env` (secrets only), `logs/` (`hermes logs`);
