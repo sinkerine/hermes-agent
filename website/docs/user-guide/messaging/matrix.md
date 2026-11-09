@@ -333,6 +333,11 @@ Treat federated rooms and untrusted homeservers as untrusted input: keep room
 allowlists tight, prefer DMs or private rooms for tool-heavy work, and avoid
 authorizing bridge ghosts or appservice puppets as allowed users.
 
+Inbound MSC4274 galleries (`dm.filament.gallery` or `m.gallery`) deliver the shared
+caption and attachments together in one agent turn. Hermes loads up to 60 items
+in order, applying the media size limit to each item. If any items cannot be
+loaded, the caption is preserved and a missing-items note identifies them.
+
 Optional behavior settings in `~/.hermes/config.yaml`:
 
 ```yaml

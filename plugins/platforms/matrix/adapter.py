@@ -78,7 +78,7 @@ from gateway.platforms.base import (
 from gateway.platforms.base import transcode_to_ogg_opus
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 from gateway.platforms.helpers import ThreadParticipationTracker
-from plugins.platforms.matrix import adapter_html, event_dedup
+from plugins.platforms.matrix import adapter_gallery, adapter_html, adapter_media, event_dedup
 from plugins.platforms.matrix.voice_mention import ParkedVoices, VoiceGate, has_voice_marker, is_voice_event
 
 logger = logging.getLogger(__name__)
@@ -1947,6 +1947,9 @@ class MatrixAdapter(BasePlatformAdapter):
             return
         if msgtype in ("m.image", "m.audio", "m.video", "m.file"):
             await self._handle_media_message(room_id, sender, event_id, event_ts, source_content, relates_to, msgtype)
+        elif msgtype in adapter_gallery.GALLERY_MSGTYPES:
+            await adapter_gallery.handle_gallery_message(
+                self, room_id, sender, event_id, source_content, relates_to, msgtype)
         elif msgtype in ("m.text", "m.notice"):
             await self._handle_text_message(room_id, sender, event_id, event_ts, source_content, relates_to)
 
@@ -2173,7 +2176,7 @@ class MatrixAdapter(BasePlatformAdapter):
             try:
                 cached_path = await self._download_and_cache_media(
                     url, event_id, file_content if is_encrypted_media else None, msg_type, media_type,
-                    is_voice_message, body)
+                    is_voice_message, adapter_media.media_filename(source_content))
             except Exception as e:
                 logger.warning("[Matrix] Failed to cache media: %s", e)
         # Unencrypted media may fall back to the HTTP download URL when caching failed.
@@ -2202,27 +2205,17 @@ class MatrixAdapter(BasePlatformAdapter):
         self, url: str, event_id: str, encrypted_file: Optional[dict], msg_type: MessageType, media_type: str,
         is_voice_message: bool, body: str) -> Optional[str]:
         """Download (and decrypt, when *encrypted_file* is given) media into the local cache."""
-        file_bytes = await self._client.download_media(ContentURI(url))
+        file_bytes = await adapter_media.fetch_media_bytes(self._client, url, event_id, encrypted_file)
         if file_bytes is None:
             return None
-        if encrypted_file is not None:
-            from mautrix.crypto.attachments import decrypt_attachment
-            hashes_value, key_value = encrypted_file.get("hashes"), encrypted_file.get("key")
-            hash_value = hashes_value.get("sha256") if isinstance(hashes_value, dict) else None
-            key_value = key_value.get("k") if isinstance(key_value, dict) else key_value
-            iv_value = encrypted_file.get("iv")
-            if not (key_value and hash_value and iv_value):
-                logger.warning("[Matrix] Encrypted media event missing decryption metadata for %s", event_id)
-                return None
-            file_bytes = decrypt_attachment(file_bytes, key_value, hash_value, iv_value)
         from gateway.platforms.base import (
             cache_audio_from_bytes_async,
             cache_document_from_bytes_async,
             cache_image_from_bytes_async,
         )
         if msg_type == MessageType.PHOTO:
-            ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}
-            cached_path = await cache_image_from_bytes_async(file_bytes, ext=ext_map.get(media_type, ".jpg"))
+            cached_path = await cache_image_from_bytes_async(
+                file_bytes, ext=adapter_media.IMAGE_EXT_BY_MIME.get(media_type, ".jpg"))
             logger.info("[Matrix] Cached user image at %s", cached_path)
             return cached_path
         if msg_type in {MessageType.AUDIO, MessageType.VOICE}:

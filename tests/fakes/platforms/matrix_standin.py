@@ -39,6 +39,7 @@ class MatrixStandin(StandinServer):
         self._request_index = 0
         self.token = token
         self.bot_user_id = bot_user_id
+        self._media: dict[str, bytes] = {}
         self._seq = 0
         self._rooms: dict[str, dict[str, Any]] = {}
         self._account_data: dict[tuple[str, str], dict[str, Any]] = {}
@@ -97,7 +98,16 @@ class MatrixStandin(StandinServer):
             content["m.relates_to"] = {"rel_type": "m.thread", "event_id": thread_root,
                                        "is_falling_back": True,
                                        "m.in_reply_to": {"event_id": thread_root}}
+        return self.post_content(room_id, sender, content)
+
+    def post_content(self, room_id: str, sender: str, content: dict) -> str:
         return self._append(room_id, sender, "m.room.message", content)
+
+    def put_media(self, data: bytes, *, media_id: str | None = None) -> str:
+        with self._lock:
+            media_id = media_id if media_id is not None else f"media{len(self._media) + 1}"
+            self._media[media_id] = data
+        return f"mxc://standin.local/{media_id}"
 
     def bot_messages(self, room_id: str, *, thread_root: str | None = None) -> list[dict[str, Any]]:
         """Return visible events with final content, preserving the original thread relation."""
@@ -131,6 +141,7 @@ class MatrixStandin(StandinServer):
         app = web.Application()
         routes = [
             ("GET", "/versions", "versions"),
+            ("GET", "/v1/media/download/{server_name}/{media_id}", "media_download"),
             ("GET", "/v3/account/whoami", "whoami"),
             ("POST", "/v3/user/{user_id}/filter", "filter"),
             ("GET", "/v3/sync", "sync"),
@@ -177,6 +188,8 @@ class MatrixStandin(StandinServer):
                 self._record_request(request_index, method, params, exc.body, faulted=True)
                 return web.json_response(exc.body, status=exc.status)
             self._record_request(request_index, method, params, body)
+            if method == "media_download":
+                return web.Response(body=body, content_type="application/octet-stream")
             return web.json_response(body)
         return handle
 
@@ -190,6 +203,12 @@ class MatrixStandin(StandinServer):
         if room is None:
             raise _MatrixError("M_NOT_FOUND", "Unknown room")
         return room
+
+    async def _api_media_download(self, params: dict[str, Any]) -> bytes:
+        with self._lock:
+            if params["server_name"] != "standin.local" or params["media_id"] not in self._media:
+                raise _MatrixError("M_NOT_FOUND", "Unknown media")
+            return self._media[params["media_id"]]
 
     async def _api_versions(self, _params: dict[str, Any]) -> dict[str, Any]:
         return {"versions": ["v1.1", "v1.11"], "unstable_features": {}}

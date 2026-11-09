@@ -181,3 +181,31 @@ def test_matrix_standin_sync_faults_and_visible_edits() -> None:
         assert unknown.json()["errcode"] == "M_UNRECOGNIZED"
         assert server.calls("GET /_matrix/client/v3/unimplemented")[0].faulted
         assert server.calls("send")[0].faulted
+
+
+def test_matrix_standin_authenticated_media_and_arbitrary_content() -> None:
+    """The advertised v1.11 download route returns bytes and records failures honestly."""
+    room = "!media:standin.local"
+    with MatrixStandin() as server:
+        server.add_room(room, "Media", [BOT_USER_ID, "@alice:standin.local"])
+        uri = server.put_media(b"raw-media", media_id="image")
+        assert uri == "mxc://standin.local/image"
+        url = server.base_url + "/_matrix/client/v1/media/download/standin.local/image"
+        assert requests.get(url, timeout=5).status_code == 401
+        headers = {"Authorization": f"Bearer {server.token}"}
+        downloaded = requests.get(url, headers=headers, timeout=5)
+        assert downloaded.status_code == 200 and downloaded.content == b"raw-media"
+        missing = requests.get(url + "-unknown", headers=headers, timeout=5)
+        assert missing.status_code == 404 and missing.json()["errcode"] == "M_NOT_FOUND"
+        foreign = requests.get(url.replace("/standin.local/", "/foreign.local/"), headers=headers, timeout=5)
+        assert foreign.status_code == 404
+        calls = server.calls("media_download")
+        assert [call.faulted for call in calls] == [True, False, True, True]
+        assert calls[1].response == b"raw-media"
+        content = {"msgtype": "m.gallery", "body": "caption", "itemtypes": [{"url": uri}]}
+        event_id = server.post_content(room, "@alice:standin.local", content)
+        content["body"] = "mutated after posting"
+        sync = requests.get(server.base_url + "/_matrix/client/v3/sync", headers=headers, timeout=5).json()
+        received = sync["rooms"]["join"][room]["timeline"]["events"]
+        assert received[0]["event_id"] == event_id
+        assert received[0]["content"]["body"] == "caption"
