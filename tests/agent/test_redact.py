@@ -1665,6 +1665,24 @@ class TestRedactForEgress:
         text = "credential-value"
         assert R.redact_for_egress(text) == text
 
+    def test_forced_copy_scrubs_secrets_when_normal_egress_is_disabled(self, monkeypatch):
+        from agent import redact as R
+
+        monkeypatch.setattr(R, "_REDACT_ENABLED", False)
+        token = "opaque0123456789abcdef"
+        text = f"Authorization: Bearer {token}"
+        assert R.redact_for_egress(text) == text
+        assert token not in R.redact_for_egress(text, force=True)
+
+    def test_forced_copy_withholds_text_when_redactor_raises(self, monkeypatch):
+        from agent import redact as R
+
+        def unavailable(*args, **kwargs):
+            raise RuntimeError("redactor unavailable")
+
+        monkeypatch.setattr(R, "redact_sensitive_text", unavailable)
+        assert R.redact_for_egress("credential-value", force=True) == R.REDACTION_UNAVAILABLE
+
 
 class TestWebappLaunchLinks:
     """``hermes webapp`` prints a link that signs a browser in as the user: one with the gateway's

@@ -76,7 +76,7 @@ def redact_child_text(text: Any, *, force: bool = True) -> str:
     if isinstance(text, _ParentCopy):  # already projected; forced sinks take the pre-trim projection
         return text.forced if force else text
     if force or _redact._redact_enabled():
-        return redact_for_egress(text)
+        return redact_for_egress(text, force=force)
     try:  # opted out: vault values only (still a hard boundary)
         return redact_sensitive_text(str(text or ""))
     except Exception:  # health: allow BLE001 -- fail closed, never return raw text on redactor faults

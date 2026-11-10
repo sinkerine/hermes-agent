@@ -12,6 +12,8 @@ See: https://github.com/NousResearch/hermes-agent/issues/56634
 
 import pathlib
 import re
+import shlex
+import shutil
 
 import pytest
 
@@ -23,7 +25,9 @@ _PATH_LINE = re.compile(r'^(?:declare -x|export) PATH="(.*)"$', re.MULTILINE)
 def _managed_setup(tmp_path, monkeypatch, *, profile_body: str):
     """A resetting (or no-op) profile plus one fake Hermes-managed bin dir."""
     profile = tmp_path / "profile.sh"
-    profile.write_text(profile_body, encoding="utf-8")
+    runtime_path = ":".join(dict.fromkeys(str(pathlib.Path(shutil.which(tool)).parent)
+                                          for tool in ("mktemp", "awk", "grep")))
+    profile.write_text(profile_body + f'PATH="$PATH:{runtime_path}"\n', encoding="utf-8")
     managed = tmp_path / "managed-bin"
     managed.mkdir()
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -156,8 +160,9 @@ def test_background_command_keeps_spawn_path_dirs_a_login_profile_resets(tmp_pat
     # HOME and startup files (a CI runner's never read a test's ~/.profile), so the reset
     # is pinned here; the spawn env, argv and restore helper are the production ones.
     login_shell = tmp_path / "login-shell"
-    login_shell.write_text(f'#!/usr/bin/env bash\nPATH="{profile_bin}:/usr/local/bin:/usr/bin:/bin"\n'
-                           'exec /bin/bash --noprofile --norc -c "$2"\n', encoding="utf-8")
+    bash = shlex.quote(shutil.which("bash"))
+    login_shell.write_text(f'#!{shutil.which("bash")}\nPATH="{profile_bin}:/usr/local/bin:/usr/bin:/bin"\n'
+                           f'exec {bash} --noprofile --norc -c "$2"\n', encoding="utf-8")
     login_shell.chmod(0o755)
     monkeypatch.setattr("tools.process_registry._find_shell", lambda: str(login_shell))
     registry = ProcessRegistry()

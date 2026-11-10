@@ -969,6 +969,10 @@ class TestConfigGetRedaction:
 
     SECRET = "OPAQUEKEYVALUE12345678"
 
+    @pytest.fixture(autouse=True)
+    def _enable_redaction(self, monkeypatch):
+        monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
+
     def _seed(self, home, monkeypatch):
         (home / "config.yaml").write_text(
             "providers:\n  gemini:\n    api_key: " + self.SECRET + "\n"

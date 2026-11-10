@@ -12,7 +12,8 @@ from acp_adapter.entry import _setup_logging
 SECRET = "sk-proj-AbCdEf1234567890SecretValue999"
 
 
-def test_acp_stderr_handler_redacts_secrets():
+def test_acp_stderr_handler_redacts_secrets(monkeypatch):
+    monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
     saved_handlers = logging.getLogger().handlers[:]
     saved_level = logging.getLogger().level
     try:

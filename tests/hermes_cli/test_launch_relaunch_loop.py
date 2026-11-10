@@ -8,6 +8,7 @@ failing (or whose sync never makes it current). Every exec'd generation is count
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -72,7 +73,7 @@ def _launch(tmp_path: Path, root: Path, sync_mode: str, launch: int, argv: list[
         (tmp_path / "state").write_text("stale", encoding="utf-8")
     script = tmp_path / "launch.py"
     script.write_text(_LAUNCH, encoding="utf-8")
-    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), "HERMES_HOME": str(tmp_path / "home"),
+    env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "HERMES_HOME": str(tmp_path / "home"),
            "LAUNCH_COMMAND": json.dumps(argv), "GENERATION_CAP": str(GENERATION_CAP)}
     result = subprocess.run(
         [sys.executable, str(script), str(REPO), str(root), str(tmp_path), sync_mode, str(launch)],
@@ -129,7 +130,7 @@ def _committed_checkout(tmp_path: Path) -> Path:
     (root / "pyproject.toml").write_text("[project]\nname='example'\n", encoding="utf-8")
     (root / ".gitignore").write_text("install-stamp.json\n", encoding="utf-8")
     (root / "install-stamp.json").write_text(json.dumps({"updateMechanism": "self"}), encoding="utf-8")
-    git_env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
+    git_env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path)}
     for args in (["init"], ["config", "user.email", "test@example.com"], ["config", "user.name", "test"],
                  ["add", "-A"], ["commit", "-m", "init"]):
         subprocess.run(["git", *args], cwd=root, env=git_env, check=True, capture_output=True, timeout=30)

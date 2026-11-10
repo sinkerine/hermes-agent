@@ -136,6 +136,7 @@ def test_profile_scoped_process_caches_follow_routed_home(two_homes, monkeypatch
     monkeypatch.setattr(redact, "_REDACT_ENABLED", False)  # launch profile opted out
     monkeypatch.setattr(redact, "_ENV_POLICY_BY_HOME", {})
     monkeypatch.setattr(redact, "_CONFIG_POLICY_BY_HOME", {})
+    redact.resolve_profile_policy(b)  # gateway startup records policy before log formatting
     token = "sk-abcdefghijklmnopqrstuvwxyz0123456789"
     assert redact.redact_sensitive_text(token) == token
     assert _under(b, lambda: redact.redact_sensitive_text(token)) != token

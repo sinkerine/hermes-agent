@@ -273,12 +273,13 @@ class TestInjectionFilter:
 
 
 class TestOutboundRedaction:
-    def test_every_canonical_credential_class_is_scrubbed(self):
+    def test_every_canonical_credential_class_is_scrubbed(self, monkeypatch):
         """Invariant: redact_outbound masks everything redact_sensitive_text masks. A2A ships text to a
         REMOTE peer, so a private subset here silently drops every prefix later added to agent/redact.py.
         Corpus: one synthetic token per registered prefix pattern, built from the pattern's literal prefix."""
         from agent import redact as R
 
+        monkeypatch.setattr(R, "_REDACT_ENABLED", True)
         bodies = ("Qq7zP2mX9vLk4nRt8wYb1cDf6gHj3sA0", "QQ7ZP2MX9VLK4NRT", "b-Qq7zP2mX9vLk4nRt8wYb1cDf6gHj3sA0",
                   ".Qq7zP2mX9vLk4nRt8wYb1cDf6gHj3sA0", "1-Qq7zP2mX9vLk4nRt8wYb1cDf6gHj3sA0",
                   "Qq7zP2mX9vLk4nRt8wYb1cDf6gHj3sA0.Qq7zP2mX9vLk4nRt8wYb1cDf6gHj3sA0")
@@ -292,7 +293,8 @@ class TestOutboundRedaction:
         for token in tokens:
             assert token not in security.redact_outbound(f"peer, here: {token}"), token
 
-    def test_bearer_and_email_redacted(self):
+    def test_bearer_and_email_redacted(self, monkeypatch):
+        monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
         out = security.redact_outbound("Authorization: Bearer opaque0123456789abcdef; contact me at alice@example.com")
         assert "opaque0123456789abcdef" not in out
         assert "alice@example.com" not in out
@@ -520,6 +522,7 @@ class TestClientTools:
         assert "search" in out
 
     def test_call_sends_v1_message(self, monkeypatch):
+        monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
         """Outbound params: contextId inside the message, v1.0 role, no kind."""
         monkeypatch.setattr(tools, "_load_config",
                             lambda: {"a2a_agents": {"r": {"url": "http://localhost:9999"}}})

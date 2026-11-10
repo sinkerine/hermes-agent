@@ -44,7 +44,8 @@ class TestTruncationSpill:
         assert "output_total_chars" not in r
 
     @pytest.mark.platforms("linux")
-    def test_spill_is_redacted(self, small_cap):
+    def test_spill_is_redacted(self, small_cap, monkeypatch):
+        monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
         r = json.loads(terminal_tool(
             "python3 -c \"print('sk-proj-' + 'a1B2c3D4e5F6g7H8i9J0' * 3); [print('pad', 'y'*90) for i in range(200)]\"",
             task_id="t-spill-3"))

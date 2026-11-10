@@ -200,7 +200,7 @@ def test_chat_gateways_redact_secret_in_provider_error(platform):
 
 
 @pytest.mark.parametrize("platform", ["slack", "matrix"])
-def test_chat_gateways_redact_secret_in_non_error_body(platform):
+def test_chat_gateways_redact_secret_in_non_error_body(platform, monkeypatch):
     """Secrets must be redacted even when no provider-error rewrite fires.
 
     The provider-error case above is rewritten wholesale to a generic
@@ -212,6 +212,7 @@ def test_chat_gateways_redact_secret_in_non_error_body(platform):
     redaction patterns makes this fail (genuine regression guard); the
     surrounding prose must survive intact.
     """
+    monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
     raw = (
         "Sure — here is the example request you asked for: "
         "curl -H 'Authorization: Bearer sk-ABCDEF0123456789abcdef0123' "
@@ -340,7 +341,7 @@ _ISSUE_23810_SECRET_SHAPES = {
 
 @pytest.mark.parametrize("platform", CHAT_PLATFORMS)
 @pytest.mark.parametrize("shape_name", sorted(_ISSUE_23810_SECRET_SHAPES))
-def test_chat_gateways_redact_all_issue_23810_credential_shapes(platform, shape_name):
+def test_chat_gateways_redact_all_issue_23810_credential_shapes(platform, shape_name, monkeypatch):
     """Outbound chat must mask every credential shape the banner promises.
 
     Regression guard for #23810: the gateway claimed "chat responses are
@@ -350,6 +351,7 @@ def test_chat_gateways_redact_all_issue_23810_credential_shapes(platform, shape_
     (not a provider-error envelope, so no wholesale rewrite fires) and assert
     the secret body never reaches the user while surrounding prose survives.
     """
+    monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
     secret = _ISSUE_23810_SECRET_SHAPES[shape_name]
     raw = f"Sure, here is the token you asked me to echo: {secret} — done."
 

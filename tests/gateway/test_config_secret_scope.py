@@ -438,6 +438,7 @@ def test_a_moved_route_never_sends_its_frozen_key_to_the_new_endpoint(tmp_path, 
     and drive the real consumer (the main runtime's fallback walker / the auxiliary client). A's key must
     reach A while the route is unmoved and never reach B."""
     from hermes_state_runtime import RuntimeStoreError
+    monkeypatch.setenv('HOME', str(tmp_path))
     seen, urls, servers = _loopback()
     try:
         if route == 'fallback_providers_dict':

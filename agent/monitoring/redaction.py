@@ -1,9 +1,9 @@
 """Redaction applied to monitoring data before egress.
 
-One unconditional scrub, no modes, no knobs. Every string that leaves the process passes
-through ``redact_for_export``: secrets via ``agent/redact.py::redact_for_egress`` (the single
-pattern source; fails CLOSED so a broken redactor never emits the raw string), then PII
-(e-mail, phone, UUID-shaped ids -> ``[email]`` / ``[phone]`` / ``[id]``).
+Every string passes through ``redact_for_export``: secrets follow the configured opt-in
+policy via ``agent/redact.py::redact_for_egress`` (the single pattern source), then PII
+is scrubbed unconditionally (e-mail, phone, UUID-shaped ids -> ``[email]`` / ``[phone]`` /
+``[id]``). Secret-redactor failures preserve the text for the PII pass.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ _UUID_RE = re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-
 
 
 def redact_for_export(text: Optional[str]) -> Optional[str]:
-    """Scrub a string for egress: secrets, then PII. Unconditional."""
+    """Apply the configured secret redaction policy, then scrub PII unconditionally."""
     if text is None:
         return None
     out = redact_for_egress(str(text))

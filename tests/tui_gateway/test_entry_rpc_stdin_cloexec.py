@@ -20,6 +20,7 @@ def test_rpc_stdin_is_closed_before_a_bare_child_executes(monkeypatch):
         monkeypatch.setattr(entry.sys, "stdin", type("RpcStdin", (), {"fileno": lambda _: 0})())
 
         entry._close_rpc_stdin_on_exec()
+        assert not os.get_inheritable(0)
 
         output_reader, output_writer = os.pipe()
         pid = os.fork()
@@ -33,16 +34,17 @@ def test_rpc_stdin_is_closed_before_a_bare_child_executes(monkeypatch):
                     sys.executable,
                     "-c",
                     "import os; "
-                    "\ntry: os.read(0, 1)\n"
-                    "except OSError: print('stdin-closed')\n"
-                    "else: print('stdin-inherited')",
+                    "\ntry: data = os.read(0, 1024)\n"
+                    "except OSError: data = b''\n"
+                    "print('rpc-leaked' if b'prompt.submit' in data else 'rpc-isolated')",
                 ],
             )
 
         os.close(output_writer)
         _, status = os.waitpid(pid, 0)
         assert os.waitstatus_to_exitcode(status) == 0
-        assert os.read(output_reader, 100) == b"stdin-closed\n"
+        # The loader may reuse fd 0 for a file after closing the RPC pipe.
+        assert os.read(output_reader, 100) == b"rpc-isolated\n"
         os.close(output_reader)
     finally:
         os.dup2(original_stdin, 0, inheritable=original_inheritable)

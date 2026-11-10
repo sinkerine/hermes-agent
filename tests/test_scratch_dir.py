@@ -415,7 +415,7 @@ def test_prune_records_removals_and_kills_in_scratch_prune_log(tmp_path: Path) -
 
 
 @pytest.mark.platforms("linux")  # macOS and Windows filesystems reject non-UTF-8 names
-def test_prune_log_keeps_record_of_non_utf8_name(tmp_path: Path) -> None:
+def test_prune_log_keeps_record_of_non_utf8_name(tmp_path: Path, non_utf8_filesystem) -> None:
     """A legal POSIX name that is not UTF-8 is written escaped, not dropped with its record."""
     scratch = get_scratch_dir(tmp_path, prune=False)
     raw = os.fsencode(scratch) + b"/old-\xff"

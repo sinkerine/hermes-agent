@@ -4,6 +4,7 @@ Replayed against the Sep 2026 refactor PR at open it reports 1,703 public names 
 (the figure reviewers had to find ~30 of by hand); here the contract is pinned on a throwaway repo.
 """
 import importlib.util
+import os
 import subprocess
 import textwrap
 from pathlib import Path
@@ -21,7 +22,7 @@ def _load():
 def _git(repo, *args):
     subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True,
                    env={"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
-                        "GIT_COMMITTER_EMAIL": "t@t", "PATH": "/usr/bin:/bin:/usr/local/bin"})
+                        "GIT_COMMITTER_EMAIL": "t@t", "PATH": os.environ["PATH"]})
 
 
 def test_dropped_public_names_methods_and_test_defs_are_reported_and_moves_are_not(tmp_path, monkeypatch):

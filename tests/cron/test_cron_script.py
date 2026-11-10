@@ -10,6 +10,7 @@ Tests cover:
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -103,8 +104,8 @@ class TestRunJobScript:
         (lambda d: str(d / "missing" / "python3"), "not found"),
         (lambda d: str(d), "not a file"),
         (lambda d: (d / "python3").write_text("") or str(d / "python3"), "not executable"),
-        (lambda d: "/bin/bash", "must be a Python executable"),
-        (lambda d: (d / "python").symlink_to("/bin/bash") or str(d / "python"),
+        (lambda d: shutil.which("bash"), "must be a Python executable"),
+        (lambda d: (d / "python").symlink_to(shutil.which("bash")) or str(d / "python"),
          "must be a Python executable"),
         (lambda d: (d / "pythonw").symlink_to(sys.executable) or str(d / "pythonw"),
          "must be a Python executable"),

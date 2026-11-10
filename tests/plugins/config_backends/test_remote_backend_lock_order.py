@@ -145,8 +145,8 @@ def test_boot_retry_warning_through_the_real_redacting_formatter(plane, monkeypa
 
 
 def test_the_formatter_never_reads_config(tmp_path, monkeypatch):
-    """Under a backend whose every read raises, a routed profile's records still format, redacted
-    (its policy is not recorded yet: the secure default), and no config read is attempted."""
+    """A routed profile follows the opt-in default until its own policy is recorded,
+    independently of the launch profile; formatting never reads the config backend."""
     import logging
 
     import hermes_cli.config_backend as cb
@@ -163,16 +163,16 @@ def test_the_formatter_never_reads_config(tmp_path, monkeypatch):
     monkeypatch.setattr(cb, "_route", refuse)
     monkeypatch.setattr(redact, "_ENV_POLICY_BY_HOME", {})
     monkeypatch.setattr(redact, "_CONFIG_POLICY_BY_HOME", {})
-    monkeypatch.setattr(redact, "_REDACT_ENABLED", False)  # the launch profile opted out
+    monkeypatch.setattr(redact, "_REDACT_ENABLED", True)  # the launch profile opted in
     secret = "sk-proj-" + "c" * 32
     record = logging.LogRecord("t", logging.WARNING, __file__, 1, "key %s", (secret,), None)
     token = set_hermes_home_override(tmp_path)
     try:
         out = RedactingFormatter("%(message)s").format(record)
         redact.note_env_policy(hermes_home_key(), None)
-        redact.note_config_policy(hermes_home_key(), "false")  # recorded later: the profile opted out
+        redact.note_config_policy(hermes_home_key(), "true")  # recorded later: this profile opts in
         out_after = RedactingFormatter("%(message)s").format(record)
     finally:
         reset_hermes_home_override(token)
-    assert secret not in out and secret in out_after
+    assert secret in out and secret not in out_after
     assert reads == []

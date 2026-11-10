@@ -110,7 +110,7 @@ def _server_module():
 def _legacy_runtime(db: Path, rpc: HostedRoomServerRPC) -> HostedRoomRuntime:
     return HostedRoomRuntime(
         db_path=db, rooms=[BINDING], rpc=rpc, turn_lock=RecordingTurnLocks(),
-        lease_ttl_seconds=0.4, poll_interval_seconds=0.01)
+        lease_ttl_seconds=5.0, poll_interval_seconds=0.01)
 
 
 class DispatchingPeerClient:

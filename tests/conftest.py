@@ -1611,6 +1611,22 @@ def _forbid_real_hermes_home_io(monkeypatch, request):
 
 
 @pytest.fixture
+def non_utf8_filesystem(tmp_path):
+    """Require a mount that accepts byte names; Linux filesystems can enforce UTF-8 too."""
+    import errno
+
+    path = os.fsencode(tmp_path) + b"/filename-\xff"
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except OSError as exc:
+        if exc.errno == errno.EILSEQ:
+            pytest.skip("temporary filesystem rejects non-UTF-8 filenames")
+        raise
+    os.close(fd)
+    os.unlink(path)
+
+
+@pytest.fixture
 def real_bash() -> str:
     """A bash that runs shell scripts: on the Windows runners PATH resolves ``bash`` to
     System32's WSL launcher, which prints a UTF-16 "no installed distributions" notice and

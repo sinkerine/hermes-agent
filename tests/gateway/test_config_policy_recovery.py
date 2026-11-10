@@ -277,6 +277,7 @@ def test_a_changed_fallback_secret_removes_that_fallback(tmp_path, monkeypatch, 
     config). A changed fallback secret now removes that fallback; no credential is substituted."""
     from hermes_cli.auth import AuthError
     from tests.fakes.fake_llm_provider import FakeLLMServer
+    monkeypatch.setenv('HOME', str(tmp_path))
     for name in ('ANTHROPIC_API_KEY', 'ANTHROPIC_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN'):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv('BACKUP_PROBE_KEY', 'sk-original-fallback')

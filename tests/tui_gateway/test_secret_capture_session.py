@@ -104,7 +104,8 @@ def test_secret_prompt_goes_to_active_turn_not_last_wired_session(monkeypatch):
     assert [frame["method"] for frame in frames] == ["secret"]
     assert frames[0]["params"]["session_id"] == "session-A"
     assert stored == [("DEMO_TOKEN", "owner-secret")]
-    assert result == {"missing_names": [], "setup_skipped": False, "gateway_setup_hint": None}
+    assert result == {"missing_names": [], "setup_skipped": False, "gateway_setup_hint": None,
+                      "capture_supported": True, "capture_outcome": "stored"}
     assert server_requests.open_requests("session-A") == []
     assert server_requests.open_requests("session-B") == []
 
@@ -129,7 +130,9 @@ def test_secret_prompt_without_bound_owner_is_skipped_not_guessed(monkeypatch):
 
     assert frames == []
     assert stored == []
-    assert result == {"missing_names": ["DEMO_TOKEN"], "setup_skipped": True, "gateway_setup_hint": None}
+    assert result["missing_names"] == ["DEMO_TOKEN"] and result["setup_skipped"] is True
+    assert result["capture_supported"] is True and result["capture_outcome"] == "failed"
+    assert result["gateway_setup_hint"]
 
 
 _SKILL = """---

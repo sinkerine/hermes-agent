@@ -92,6 +92,7 @@ def _make_runner(
         platform=Platform.DISCORD,
         chat_type="group",
     )
+    store.get_model_override.return_value = None
     store.load_transcript.return_value = []
     store.has_platform_message_id.return_value = False
     if durable_prompt_pin is not None:
@@ -643,6 +644,9 @@ async def test_channel_override_turns_keep_one_cached_agent_and_the_pin(
     )
     monkeypatch.setattr(gr, "_load_gateway_config", lambda: {"model": {"default": global_model}})
     monkeypatch.setattr(gr, "_resolve_gateway_model", lambda config=None: global_model)
+    # The AIAgent stand-in skips normal tool discovery; finish it before caching a signature.
+    from model_tools import discover_builtin_tools
+    discover_builtin_tools()
     fake_run_agent = types.ModuleType("run_agent")
     fake_run_agent.AIAgent = _TurnAgent
     monkeypatch.setitem(sys.modules, "run_agent", fake_run_agent)

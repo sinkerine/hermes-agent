@@ -82,16 +82,17 @@ def test_every_provider_fanout_scrubs_secrets_without_touching_the_live_transcri
     assert _SECRET in repr(transcript)  # providers got copies; the agent's own transcript is untouched
 
 
-def test_scrub_holds_with_redact_secrets_off(monkeypatch):
-    # Provider egress follows chat/cron egress: redact_secrets governs local logs, not what leaves the agent.
+def test_provider_egress_preserves_secrets_when_redaction_is_disabled(monkeypatch):
+    # Memory provider egress follows the same opt-in policy as chat egress.
     monkeypatch.setattr("agent.redact._REDACT_ENABLED", False)
     mgr, provider = _manager()
     mgr.sync_all("hi", _LEAK)
     mgr.flush_pending(timeout=5.0)
-    assert _SECRET not in repr(provider.seen)
+    assert _SECRET in repr(provider.seen)
 
 
-def test_key_detected_in_a_json_tool_result_is_also_masked_where_the_model_repeats_it_bare():
+def test_key_detected_in_a_json_tool_result_is_also_masked_where_the_model_repeats_it_bare(monkeypatch):
+    monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
     # The #115104 incident shape: an opaque (no vendor prefix) key in an ov.conf dump inside a JSON tool result,
     # then echoed by the assistant in prose where no pattern alone could recognise it.
     key = "AQ.Ab8RN6Jx2kq9Zs0VwT4yLm3PbQe7HcUfGdA1nX5oIr"

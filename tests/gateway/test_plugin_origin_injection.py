@@ -119,11 +119,14 @@ async def _publish(runner):
     runner._install_plugin_message_injector()
 
 
-async def _settle(runner, adapter, rounds: int = 200):
-    for _ in range(rounds):
-        await asyncio.sleep(0.01)
-        if not runner._background_tasks and not adapter._session_tasks and not adapter._active_sessions:
-            return
+async def _settle(runner, adapter):
+    from tests.waiting import async_wait_until
+
+    await async_wait_until(
+        lambda: not runner._background_tasks and not adapter._background_tasks
+        and not adapter._session_tasks and not adapter._active_sessions,
+        timeout=30, what="plugin injection and adapter delivery",
+    )
 
 
 @pytest.mark.asyncio

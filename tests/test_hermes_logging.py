@@ -136,10 +136,11 @@ class TestSetupLogging:
         assert not default_log.exists() or "profile-routed cron record" not in default_log.read_text(encoding="utf-8-sig")
 
     @pytest.mark.parametrize("launch_redacts, routed_opt_out, routed_redacted", [
-        (False, None, True),      # the launch profile opted out, the routed one did not
+        (True, None, False),      # an unconfigured routed profile keeps its opt-in default
+        (False, "opt-in", True),  # the routed profile opts in independently of the launch policy
         (True, "env", False),     # the routed profile opted out in its own .env
         (True, "config", False),  # the routed profile opted out in its config
-    ], ids=["launch-opt-out", "routed-env-opt-out", "routed-config-opt-out"])
+    ], ids=["routed-default", "routed-config-opt-in", "routed-env-opt-out", "routed-config-opt-out"])
     def test_routed_records_follow_their_own_profiles_redaction_policy(
             self, hermes_home, tmp_path, monkeypatch, launch_redacts, routed_opt_out, routed_redacted):
         """The listener thread formats every record after its profile scope is gone, so a routed profile's own
@@ -152,7 +153,9 @@ class TestSetupLogging:
         monkeypatch.setattr(redact, "_CONFIG_POLICY_BY_HOME", {})
         routed = tmp_path / "profile-b"
         routed.mkdir()
-        if routed_opt_out == "config":
+        if routed_opt_out == "opt-in":
+            (routed / "config.yaml").write_text("security:\n  redact_secrets: true\n", encoding="utf-8")
+        elif routed_opt_out == "config":
             (routed / "config.yaml").write_text("security:\n  redact_secrets: false\n", encoding="utf-8")
         elif routed_opt_out == "env":
             (routed / ".env").write_text("HERMES_REDACT_SECRETS=false\n", encoding="utf-8")

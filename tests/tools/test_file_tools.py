@@ -979,7 +979,8 @@ class TestSecretFileReadRedaction:
         return ops
 
     @patch("tools.file_tools._get_file_ops")
-    def test_read_file_of_hermes_config_masks_opaque_token(self, mock_get, hermes_home):
+    def test_read_file_of_hermes_config_masks_opaque_token(self, mock_get, hermes_home, monkeypatch):
+        monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
         # read_file renders line-numbered content ("5|      ADS_API_TOKEN: …"); the gutter is
         # part of the text the redactor sees, so the fixture must carry it (a gutter-free
         # fixture would pass even though the real read leaks).
@@ -1000,7 +1001,8 @@ class TestSecretFileReadRedaction:
         assert self.SYNTH in out["content"]
 
     @patch("tools.file_tools._get_file_ops")
-    def test_search_in_hermes_home_masks_opaque_token(self, mock_get, hermes_home):
+    def test_search_in_hermes_home_masks_opaque_token(self, mock_get, hermes_home, monkeypatch):
+        monkeypatch.setattr("agent.redact._REDACT_ENABLED", True)
         config = hermes_home / "config.yaml"
         ops = MagicMock()
         ops.search.return_value = self._SearchResult(

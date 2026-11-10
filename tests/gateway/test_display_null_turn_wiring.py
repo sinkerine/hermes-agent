@@ -51,6 +51,7 @@ def _wire(user_config):
         ),
         _make_bg_review_callbacks=lambda: (lambda message: None, lambda: None),
         _merge_turn_request_overrides=TurnRunner._merge_turn_request_overrides,
+        _secret_capture_callback_sync=None,
         _clarify_callback_sync=lambda *a, **k: None,
         _notice_callback_sync=lambda *a, **k: None,
         _attach_session_title_callback=lambda agent, ctx: None,

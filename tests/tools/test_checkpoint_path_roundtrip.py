@@ -12,7 +12,7 @@ def test_safe_restore_preserves_exact_paths_and_user_edits(tmp_path, monkeypatch
 
 
 @pytest.mark.platforms("linux")
-def test_safe_restore_preserves_posix_byte_paths(tmp_path, monkeypatch):
+def test_safe_restore_preserves_posix_byte_paths(tmp_path, monkeypatch, non_utf8_filesystem):
     _assert_safe_restore(tmp_path, monkeypatch, [b" raw-\xff.txt", b"carriage\rreturn.txt", b"crlf\r\nname.txt"])
 
 
@@ -52,7 +52,7 @@ def test_size_cap_applies_to_leading_space_paths(tmp_path, monkeypatch):
 
 
 @pytest.mark.platforms("linux")
-def test_size_cap_applies_to_posix_byte_paths(tmp_path, monkeypatch):
+def test_size_cap_applies_to_posix_byte_paths(tmp_path, monkeypatch, non_utf8_filesystem):
     _assert_size_cap(tmp_path, monkeypatch, b" oversized-\xff.bin")
 
 

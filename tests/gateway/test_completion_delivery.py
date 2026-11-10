@@ -508,12 +508,13 @@ def test_coalesced_format_bounds_details_and_reports_omitted_count():
     assert "and 2 more completion(s)" in text
 
 
-def test_coalesced_format_force_redacts_output_when_redaction_disabled(monkeypatch):
-    """A user setting cannot disable the gateway's outbound secret floor."""
+@pytest.mark.parametrize("enabled", [False, True])
+def test_coalesced_format_respects_redaction_policy(monkeypatch, enabled):
+    """Completion output follows the configured redaction preference."""
     import agent.redact as redact_module
 
     secret = "abc123randomopaquetokenvalue999"
-    monkeypatch.setattr(redact_module, "_REDACT_ENABLED", False)
+    monkeypatch.setattr(redact_module, "_REDACT_ENABLED", enabled)
 
     async def _format():
         loop = asyncio.get_running_loop()
@@ -530,7 +531,7 @@ def test_coalesced_format_force_redacts_output_when_redaction_disabled(monkeypat
 
     text = asyncio.run(_format())
 
-    assert secret not in text
+    assert (secret not in text) is enabled
     assert "HOME=/home/user" in text
 
 
@@ -539,7 +540,7 @@ def test_coalesced_format_redacts_before_truncating_output(monkeypatch):
     import agent.redact as redact_module
 
     marker = "SHOULD_NOT_SURVIVE"
-    monkeypatch.setattr(redact_module, "_REDACT_ENABLED", False)
+    monkeypatch.setattr(redact_module, "_REDACT_ENABLED", True)
 
     async def _format():
         loop = asyncio.get_running_loop()

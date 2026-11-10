@@ -1243,14 +1243,14 @@ REDACTION_UNAVAILABLE = "[redaction-unavailable]"
 _BEARER_RESIDUE_RE = re.compile(r"\bBearer\s+(?:\[[^\]]+\]|[A-Za-z0-9._~+/-]{20,}=*)", re.IGNORECASE)
 
 
-def redact_for_egress(text: str) -> str:
-    """Return text unchanged when redaction is disabled; otherwise apply egress redaction."""
+def redact_for_egress(text: str, *, force: bool = False) -> str:
+    """Apply the configured policy, or force a scrub for an explicitly protected copy."""
     text = str(text or "")
     try:
-        text = redact_sensitive_text(text)
+        text = redact_sensitive_text(text, force=force)
     except Exception:
-        return text
-    if _redact_enabled() and "earer" in text:
+        return REDACTION_UNAVAILABLE if force else text
+    if (force or _redact_enabled()) and "earer" in text:
         text = _BEARER_RESIDUE_RE.sub("Bearer [redacted]", text)
     return text
 

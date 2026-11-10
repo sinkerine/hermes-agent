@@ -660,7 +660,7 @@ def test_pid_alive_reads_a_proxy_that_exited_after_the_liveness_probe_as_dead(he
     monkeypatch.setattr(ip, "_proxy_nonce", None)
     monkeypatch.setattr(ip, "_read_persisted_nonce", lambda: None)
     monkeypatch.setattr(ip, "_run", MagicMock(return_value=MagicMock(returncode=1, stdout="")))
-    proxy = subprocess.Popen(["bash", "-c", "exec -a iron-proxy sleep 30"])
+    proxy = subprocess.Popen(["iron-proxy", "-c", "import signal; signal.pause()"], executable=sys.executable)
     try:
         wait_until(lambda: Path(f"/proc/{proxy.pid}/cmdline").read_bytes().startswith(b"iron-proxy"), timeout=15)
         assert ip._pid_alive(proxy.pid) is True  # control: a live proxy, known by argv[0]

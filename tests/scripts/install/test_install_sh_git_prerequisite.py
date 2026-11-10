@@ -8,6 +8,7 @@ unless a plain headless run cannot.
 """
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -86,7 +87,7 @@ def _run_prerequisites(tmp_path: Path, *, git: str = "stub", interactive: bool =
     path = os.pathsep.join([str(brew_bin), str(bin_dir), "/usr/bin", "/bin"])
     env = dict(os.environ, PATH=path, HOME=str(tmp_path))
     result = subprocess.run(
-        ["/bin/bash", "-c", probe, "probe", str(_SCRIPT)],
+        [shutil.which("bash"), "-c", probe, "probe", str(_SCRIPT)],
         env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=120, check=False,
     )
     return result, (calls.read_text().splitlines() if calls.is_file() else [])

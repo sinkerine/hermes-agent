@@ -661,7 +661,7 @@ async def test_reconnect_reschedule_is_platform_scoped():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(not hasattr(time, "tzset"), reason="needs a POSIX process timezone switch")
+@pytest.mark.platforms("posix")
 @pytest.mark.parametrize("aware_marker", [False, True], ids=["naive-local", "aware-utc"])
 async def test_startup_auto_resume_freshness_survives_spring_forward(monkeypatch, aware_marker):
     """A session marked 20 minutes before boot is inside a 60-minute window even when a DST
@@ -671,7 +671,8 @@ async def test_startup_auto_resume_freshness_survives_spring_forward(monkeypatch
     monkeypatch.setenv("HERMES_AUTO_CONTINUE_FRESHNESS", "3600")
     original_tz = os.environ.get("TZ")
     try:
-        os.environ["TZ"] = "America/New_York"
+        # Spell out the DST rules so the test also runs without a system zoneinfo database.
+        os.environ["TZ"] = "EST5EDT,M3.2.0,M11.1.0"
         time.tzset()
         # 2026-03-08: clocks jump 02:00 -> 03:00, so 01:50 -> 03:10 is 20 real minutes.
         marked = datetime(2026, 3, 8, 1, 50)

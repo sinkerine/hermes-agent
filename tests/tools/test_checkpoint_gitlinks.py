@@ -73,7 +73,9 @@ def test_unrelated_selection_still_restores(checkpoint, safe, spec):
                                   # Raw bytes stay bytes until the test runs: decoding at
                                   # collection fails on Windows, and macOS rejects them.
                                   pytest.param(b"bad-\xff.txt", marks=pytest.mark.platforms("linux"))])
-def test_unusual_filename_does_not_break_tree_inspection(checkpoint, name):
+def test_unusual_filename_does_not_break_tree_inspection(checkpoint, name, request):
+    if isinstance(name, bytes):
+        request.getfixturevalue("non_utf8_filesystem")
     mgr, work, _ = checkpoint
     name = os.fsdecode(name)
     target = work / name
@@ -120,7 +122,9 @@ def test_empty_selection_refuses_without_mutation(checkpoint, tmp_path, notes):
 @pytest.mark.parametrize("name", ["nested space", "nested-雪", "vendor/tool",
                                   pytest.param("nested\tline\n", marks=pytest.mark.platforms("posix")),
                                   pytest.param(b"nested-\xff", marks=pytest.mark.platforms("linux"))])
-def test_gitlink_name_roundtrips_in_refusal(checkpoint, name):
+def test_gitlink_name_roundtrips_in_refusal(checkpoint, name, request):
+    if isinstance(name, bytes):
+        request.getfixturevalue("non_utf8_filesystem")
     mgr, work, _ = checkpoint
     name = os.fsdecode(name)
     (work / name).parent.mkdir(parents=True, exist_ok=True)

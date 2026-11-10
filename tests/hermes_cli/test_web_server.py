@@ -3222,7 +3222,7 @@ class TestNewEndpoints:
             db.close()
         original_tz = os.environ.get("TZ")
         try:
-            os.environ["TZ"] = tz_name
+            os.environ["TZ"] = {"Asia/Kolkata": "IST-5:30", "America/New_York": "EST5EDT,M3.2.0,M11.1.0"}[tz_name]
             time.tzset()
             resp = self.client.get("/api/analytics/usage?days=365")
         finally:
@@ -3234,7 +3234,7 @@ class TestNewEndpoints:
         assert resp.status_code == 200
         return {row["day"]: row["sessions"] for row in resp.json()["daily"]}
 
-    @pytest.mark.skipif(not hasattr(time, "tzset"), reason="needs a POSIX process timezone switch")
+    @pytest.mark.platforms("posix")
     def test_analytics_daily_buckets_use_local_day(self):
         """A session at 02:00 IST is counted on that local day, as /insights counts it (not the UTC day before)."""
         from datetime import datetime, timedelta
@@ -3243,7 +3243,7 @@ class TestNewEndpoints:
         daily = self._daily_for_local_starts("Asia/Kolkata", [yesterday])
         assert daily == {yesterday.strftime("%Y-%m-%d"): 1}
 
-    @pytest.mark.skipif(not hasattr(time, "tzset"), reason="needs a POSIX process timezone switch")
+    @pytest.mark.platforms("posix")
     def test_analytics_daily_buckets_follow_dst_offset_per_session(self):
         """23:30 local stays on its own day in both EST and EDT; one fixed offset for the range misplaces one."""
         from datetime import datetime, timedelta

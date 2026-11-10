@@ -4678,6 +4678,7 @@
                 "read_file",
                 "read_terminal",
                 "read_window_below",
+                "request_secret_capture",
                 "search_files",
                 "session_search",
                 "set_theme",
