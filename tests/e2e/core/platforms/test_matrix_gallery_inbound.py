@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from pathlib import Path
 
 import pytest
@@ -21,8 +22,8 @@ PNG_B = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQV
 
 
 def _image(url: str, name: str) -> dict:
-    return {"itemtype": "m.image", "body": name, "filename": name, "url": url,
-            "info": {"mimetype": "image/png"}}
+    return {"itemtype": "m.image", "body": name, "url": url,
+            "info": {"mimetype": "image/png", "size": len(PNG_A), "w": 1, "h": 1}}
 
 
 def _last_user(request: dict) -> tuple[str, list[str]]:
@@ -42,7 +43,7 @@ def test_matrix_gallery_one_turn_with_ordered_media_and_failures(tmp_path: Path)
     crypto = pytest.importorskip("mautrix.crypto.attachments", reason="requires the matrix extra")
     driver = MatrixDriver()
     director = Director()
-    for token in ("gallery", "none", "after", "allfail"):
+    for token in ("gallery", "none", "after", "allfail", "live"):
         director.script(token, Text(f"completed {token}"))
     driver.start()
     try:
@@ -79,7 +80,7 @@ def test_matrix_gallery_one_turn_with_ordered_media_and_failures(tmp_path: Path)
                 root = post({"msgtype": "dm.filament.gallery", "body": "[in:gallery] compare these",
                     "m.mentions": mentions, "itemtypes": [
                         _image(a, "a.png"), {"itemtype": "m.video", "url": v, "body": "clip.mp4",
-                            "filename": "clip.mp4", "info": {"mimetype": "video/mp4"}},
+                            "info": {"mimetype": "video/mp4", "size": len(b"video bytes"), "duration": 1000}},
                         encrypted, _image("mxc://standin.local/c", "c.png")]})
                 assert len(reply("gallery")) == 1
                 assert director.turns["gallery"] == 1
@@ -91,7 +92,8 @@ def test_matrix_gallery_one_turn_with_ordered_media_and_failures(tmp_path: Path)
 
                 b_plain = server.put_media(PNG_B)
                 post({"msgtype": "m.gallery", "body": "", "m.mentions": mentions,
-                      "m.relates_to": {"rel_type": "m.thread", "event_id": root},
+                      "m.relates_to": {"rel_type": "m.thread", "event_id": root,
+                                       "is_falling_back": True, "m.in_reply_to": {"event_id": root}},
                       "itemtypes": [_image(b_plain, "b.png"), _image(a, "a.png")]})
                 threaded = reply("none", root)
                 assert len(threaded) == 1
@@ -110,9 +112,25 @@ def test_matrix_gallery_one_turn_with_ordered_media_and_failures(tmp_path: Path)
                       "m.mentions": mentions, "m.new_content": {"msgtype": "m.gallery", "body": "[in:edited]"},
                       "m.relates_to": {"rel_type": "m.replace", "event_id": root},
                       "itemtypes": [_image(d, "d.png")]})
+                # post_content delivers all senders, including non-members; no add_member seam is needed.
+                stranger = "@stranger:standin.local"
+                s1 = server.put_media(PNG_A, media_id="s1")
+                s2 = server.put_media(PNG_B, media_id="s2")
+                replies_before_stranger = len(server.bot_messages(driver.room_id))
+                stranger_event = server.post_content(driver.room_id, stranger, {
+                    "msgtype": "dm.filament.gallery", "body": "[in:stranger] compare these",
+                    "m.mentions": mentions, "itemtypes": [_image(s1, "s1.png"), _image(s2, "s2.png")]})
                 post({"msgtype": "m.text", "body": "[in:after] done?", "m.mentions": mentions})
                 assert len(reply("after")) == 1
-                assert "gated" not in director.turns and "edited" not in director.turns
+                assert all(token not in director.turns for token in ("gated", "edited", "stranger"))
+                assert len(server.bot_messages(driver.room_id)) == replies_before_stranger + 1
+                assert not [event for event in server.bot_messages(driver.room_id)
+                            if event["content"].get("m.relates_to", {}).get("m.in_reply_to", {}).get(
+                                "event_id") == stranger_event]
+                # D9 permits downloads before runner authorization; retain observations without a count gate.
+                stranger_downloads = [call.params["media_id"] for call in server.calls("media_download")
+                                      if call.params["media_id"] in {"s1", "s2"}]
+                (tmp_path / "stranger-downloads.json").write_text(json.dumps(stranger_downloads))
                 assert not [call for call in server.calls("media_download") if call.params["media_id"] in {"d", "e"}]
 
                 post({"msgtype": "dm.filament.gallery", "body": "[in:allfail] unavailable",
@@ -124,6 +142,15 @@ def test_matrix_gallery_one_turn_with_ordered_media_and_failures(tmp_path: Path)
                 text, images = _last_user(director.requests["allfail"][-1])
                 assert not images
                 assert "[in:allfail] unavailable\n\n[Gallery: none of the 2 items could be loaded:" in text
+                live = {"msgtype": "dm.filament.gallery", "body": "[in:live] what images do you see?",
+                        "itemtypes": [_image(a, "a.png"), _image(b_plain, "b.png")], "m.mentions": mentions}
+                assert set(live) == {"msgtype", "body", "itemtypes", "m.mentions"}
+                post(live)
+                assert len(reply("live")) == 1
+                assert director.turns["live"] == 1
+                text, images = _last_user(director.requests["live"][-1])
+                assert images == [_data_url(PNG_A), _data_url(PNG_B)]
+                assert live["body"] in text and "[Gallery:" not in text
                 assert not [call for call in server.calls if call.faulted and isinstance(call.response, dict)
                             and call.response.get("errcode") == "M_UNRECOGNIZED"]
                 assert server.bot_messages(driver.other_room_id) == []
