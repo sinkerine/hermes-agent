@@ -47,6 +47,8 @@ streaming:
 
 Both thresholds must be met; completion always flushes the remaining text. Restart the Hermes gateway after changing these settings.
 
+If a room-event write receives HTTP 429, Hermes honors `Retry-After` and Matrix's `retry_after_ms` before retrying the same request and transaction ID. This covers streaming edits, new messages, reactions, state events, and redactions. Concurrent writes through that bot's session share the cooldown; sync and other reads stay responsive. Retries are limited to three, with a maximum wait budget of 30 seconds per request. Without a usable server delay, Hermes uses exponential backoff. Persistent throttling is returned to the existing delivery recovery path with the remaining retry delay; authentication and permission errors are not retried.
+
 Synapse defaults to 0.2 events per second with a burst of 10, which is too low for sustained edit streaming. For a private homeserver, a starting point in Synapse's `homeserver.yaml` is:
 
 ```yaml

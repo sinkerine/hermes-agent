@@ -22,7 +22,7 @@ def connect_adapter(monkeypatch):
     client_class = fake_modules["mautrix.client"].Client
     for name, module in fake_modules.items():
         monkeypatch.setitem(sys.modules, name, module)
-    monkeypatch.setattr(matrix, "_create_matrix_session", lambda proxy: MagicMock())
+    monkeypatch.setattr(matrix.adapter_transport, "create_matrix_session", lambda proxy: MagicMock())
     monkeypatch.setattr(matrix.MatrixAdapter, "_sync_loop", AsyncMock())
     monkeypatch.setattr(matrix.MatrixAdapter, "_connect_initial_sync", AsyncMock())
 

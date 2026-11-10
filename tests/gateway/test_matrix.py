@@ -975,7 +975,7 @@ class TestMatrixE2EEHardFail:
         import plugins.platforms.matrix.adapter as matrix_mod
         with patch.object(matrix_mod, "_check_e2ee_deps", return_value=False):
             with patch.dict("sys.modules", fake_mautrix_mods):
-                with patch.object(matrix_mod, "_create_matrix_session", return_value=MagicMock()):
+                with patch.object(matrix_mod.adapter_transport, "create_matrix_session", return_value=MagicMock()):
                     with patch.object(adapter, "_sync_loop", AsyncMock(return_value=None)):
                         result = await adapter.connect()
 
@@ -1361,7 +1361,7 @@ class TestMatrixSyncLoop:
 
         import plugins.platforms.matrix.adapter as matrix_mod
         with patch.dict("sys.modules", fake_mautrix_mods):
-            with patch.object(matrix_mod, "_create_matrix_session", return_value=MagicMock()):
+            with patch.object(matrix_mod.adapter_transport, "create_matrix_session", return_value=MagicMock()):
                 with patch.object(adapter, "_sync_loop", AsyncMock(return_value=None)):
                     assert await adapter.connect() is True
 
@@ -2461,13 +2461,13 @@ class TestMatrixProxyConfig:
 
 
 class TestCreateMatrixSession:
-    """Verify _create_matrix_session applies proxy at the session level."""
+    """Verify create_matrix_session applies proxy at the session level."""
 
     @pytest.mark.asyncio
     async def test_no_proxy_returns_trust_env_session(self):
         with patch.dict("sys.modules", _make_fake_mautrix()):
-            from plugins.platforms.matrix.adapter import _create_matrix_session
-            session = _create_matrix_session(None)
+            from plugins.platforms.matrix.adapter_transport import create_matrix_session
+            session = create_matrix_session(None)
             try:
                 assert session.trust_env is True
             finally:

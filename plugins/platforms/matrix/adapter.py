@@ -72,13 +72,13 @@ except ImportError:
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
-    gateway_trust_env, BasePlatformAdapter, ExecApprovalPrompt,
+    BasePlatformAdapter, ExecApprovalPrompt,
     SendResult, resolve_proxy_url, proxy_kwargs_for_aiohttp, ssrf_redirect_guard,
 )
 from gateway.platforms.base import transcode_to_ogg_opus
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 from gateway.platforms.helpers import ThreadParticipationTracker
-from plugins.platforms.matrix import adapter_gallery, adapter_html, adapter_media, event_dedup
+from plugins.platforms.matrix import adapter_gallery, adapter_html, adapter_media, adapter_transport, event_dedup
 from plugins.platforms.matrix.adapter_commands import _normalize_matrix_bang_command
 from plugins.platforms.matrix.command_publisher import MatrixCommandDescriptionsMixin
 from plugins.platforms.matrix.voice_mention import ParkedVoices, VoiceGate, has_voice_marker, is_voice_event
@@ -363,24 +363,6 @@ def _matrix_event_timestamp_seconds(event: Any) -> float:
         return 0.0
     # origin_server_ts is ms; some SDK objects/fakes expose seconds — keep both sane.
     return ts / 1000.0 if ts > 10_000_000_000 else ts
-
-
-def _create_matrix_session(proxy_url: str | None):
-    """ClientSession whose proxy applies to *all* requests: mautrix's ``HTTPAPI._send()`` never
-    forwards per-request ``proxy=``, so it must be session-level (``proxy=`` for HTTP(S),
-    ``ProxyConnector`` for SOCKS); with no proxy, ``trust_env`` honours HTTP(S)_PROXY."""
-    import aiohttp
-    if not proxy_url:
-        return aiohttp.ClientSession(trust_env=gateway_trust_env())
-    if proxy_url.split("://")[0].lower().startswith("socks"):
-        try:
-            from aiohttp_socks import ProxyConnector
-            return aiohttp.ClientSession(connector=ProxyConnector.from_url(proxy_url, rdns=True))
-        except ImportError:
-            logger.warning(
-                "aiohttp_socks not installed — SOCKS proxy %s ignored. Run: pip install aiohttp-socks", proxy_url)
-            return aiohttp.ClientSession(trust_env=gateway_trust_env())
-    return aiohttp.ClientSession(proxy=proxy_url)
 
 
 def _check_e2ee_deps() -> bool:
@@ -1135,7 +1117,7 @@ class MatrixAdapter(MatrixCommandDescriptionsMixin, BasePlatformAdapter):
             return False
         # Resolved here, inside the profile scope, so multiplexed profiles never share it.
         self._resolve_store_dir().mkdir(parents=True, exist_ok=True)
-        client_session = _create_matrix_session(self._proxy_url)
+        client_session = adapter_transport.create_matrix_session(self._proxy_url)
         api = HTTPAPI(base_url=self._homeserver, token=self._access_token or "", client_session=client_session)
         state_store = MemoryStateStore()
         sync_store = MemorySyncStore()
@@ -1230,16 +1212,18 @@ class MatrixAdapter(MatrixCommandDescriptionsMixin, BasePlatformAdapter):
                 last_event_id = await self._send_room_message(chat_id, msg_content)
                 logger.info("Matrix: sent event %s to %s", last_event_id, chat_id)
             except Exception as exc:
+                if getattr(exc, "http_status", None) == 429:
+                    return adapter_transport.send_failure(exc)
                 if not (self._encryption and getattr(self._client, "crypto", None)):
                     logger.error("Matrix: failed to send to %s: %s", chat_id, exc)
-                    return SendResult(success=False, error=str(exc))
+                    return adapter_transport.send_failure(exc)
                 try:  # E2EE error: retry once after sharing keys
                     await self._client.crypto.share_keys()
                     last_event_id = await self._send_room_message(chat_id, msg_content)
                     logger.info("Matrix: sent event %s to %s (after key share)", last_event_id, chat_id)
                 except Exception as retry_exc:
                     logger.error("Matrix: failed to send to %s after retry: %s", chat_id, retry_exc)
-                    return SendResult(success=False, error=str(retry_exc))
+                    return adapter_transport.send_failure(retry_exc)
         return SendResult(success=True, message_id=last_event_id)
 
     async def _send_room_message(self, chat_id: str, msg_content: dict[str, Any]) -> str:
@@ -1666,7 +1650,7 @@ class MatrixAdapter(MatrixCommandDescriptionsMixin, BasePlatformAdapter):
             event_id = await self._client.send_message_event(RoomID(room_id), EventType.ROOM_MESSAGE, msg_content)
             return SendResult(success=True, message_id=str(event_id))
         except Exception as exc:
-            return SendResult(success=False, error=str(exc))
+            return adapter_transport.send_failure(exc)
 
     async def _send_local_file(
         self, room_id: str, file_path: str, msgtype: str, caption: Optional[str] = None,
