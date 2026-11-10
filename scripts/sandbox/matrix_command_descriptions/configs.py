@@ -74,7 +74,7 @@ def bootstrap():
             continue
         room = api('alice', '/createRoom', {'name': name, 'preset': 'private_chat',
             'invite': [BOT, '@bob:localhost'], 'power_level_content_override': {
-                'users': {'@alice:localhost': 100, BOT: power}, 'state_default': 50}})['room_id']
+                'users': {BOT: power}, 'state_default': 50}})['room_id']
         for user in ('hermes', 'bob'):
             api(user, '/join/' + quote(room, safe=''), {})
         rooms[name] = room
