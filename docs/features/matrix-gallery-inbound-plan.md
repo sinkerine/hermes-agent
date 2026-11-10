@@ -1,375 +1,416 @@
-# Matrix MSC4274 gallery inbound — implementation plan
+# Matrix MSC4274 gallery inbound: plan (revision 2)
 
-Status: **approved by the user (2026-11-09), decisions D1–D8 as recommended** · Base: `refs/heads/main` @ `db722732ad` · Branch:
-`feat/matrix-gallery-inbound` · Worktree: `/home/sinkerine/.paseo/worktrees/15zkmyhp/matrix-gallery-inbound`
+| | |
+|---|---|
+| Status | **Approved by the user (revision 2, 2026-11-09).** Revision 1's "approved by the user (2026-11-09)" line was history; this approval is current. |
+| Base | `refs/heads/main` @ `db722732ad1e7002cd06fc3c813a109626466d59` |
+| Branch | `matrix-gallery-inbound` (revision 1 named `feat/matrix-gallery-inbound`, which was wrong) |
+| Worktree | `/home/sinkerine/.paseo/worktrees/15zkmyhp/matrix-gallery-inbound` |
+| Delivery | **Merge into the default branch (`main`) after every gate in §5 passes and the consolidated review is OK** (user decision, revision 2). This replaces revision 1's "branch-only" wording. There is no push, no deploy, no live message and no production-state change. The main checkout `/home/sinkerine/dev/hermes-agent` is never edited by hand; the merge is a git ref operation done by the orchestrator. |
+| Scope | Hermes Matrix adapter, its tests, stand-in and docs. The Element Web sender is read-only reference; it gets no cross-project edits. |
 
-Delivery is **branch-only**: nothing is merged into or edited in the main checkout
-(`/home/sinkerine/dev/hermes-agent`). Element-web is out of scope. The sender side (media upload
-as galleries) is a separate mission in a separate workspace, and this plan makes no cross-project
-edits.
+## 0. Why revision 2 exists (discrepancy)
 
-## 0. Verified findings (base `db722732ad`)
+The handoff expected a fresh design. HEAD instead already holds a preserved implementation:
+four commits on the base, which are kept and not rewritten.
 
-| # | Claim | Verified at |
+| Commit | Content |
+|---|---|
+| `87bdd356dc` | Revision 1 of this plan |
+| `111f21e268` | T1: `adapter_gallery.py`, `adapter_media.py`, adapter wiring, unit tests, stand-in media route, E2E journey, user docs |
+| `4141702a82` | Root `AGENTS.md` project-tree trim. This is unrelated to galleries; see D11. |
+| `5a3fa2591a` | E2E fake-model `supports_vision` fix |
+
+The worktree has no surviving receipts: no `.venv`, no `.hermes-sandbox/` and no run evidence.
+Earlier pass claims therefore come from memory only and count for nothing. **Every gate in §5 must
+be re-run from scratch on the final HEAD.** Revision 2 does three things:
+
+1. Re-verifies the preserved code against base, the Element sender source and mautrix.
+2. Records the current decisions (D1–D11).
+3. Adds a small verification delta (T1).
+
+No production-code change is planned. The only exception is a defect that T1's new tests expose.
+
+## 1. Verified findings
+
+The base adapter is the same as on the deployed `agent-sachi` build `f54c98a42e`, which is a
+sibling of base off `ab24977e9f`. That build differs only in a skill and in `AGENTS.md`, so the
+live drop applies to base.
+
+| # | Finding | Where |
 |---|---|---|
-| F1 | Gallery msgtypes are silently dropped. `_on_room_message` routes only `m.image/m.audio/m.video/m.file` and `m.text/m.notice`; any other msgtype falls off the end with no log. | `plugins/platforms/matrix/adapter.py:1948-1951` |
-| F2 | Sending media as separate events gives one turn per event. Each media event calls `handle_message` once. | `adapter.py:2181-2186` |
-| F3 | `MessageEvent` already carries parallel `media_urls` / `media_types` / `media_filenames` lists, and the session envelope and busy merge (`extend_media`) preserve them. | `gateway/platforms/event.py:95-139,154-164`; `gateway/session_envelope.py:37` |
-| F4 | `_resolve_message_context` is the single permission/mention/reply/thread seam. It reads `m.mentions.user_ids` and `formatted_body` through `_content_mentions_bot`, strips the mention, sets thread or synthetic-thread IDs, builds `source`, and sends the read receipt and thread mark once. | `adapter.py:1953-2020,2900-2904` |
-| F5 | The single-media path gates **before** downloading, and an invariant test pins this. | `adapter.py:2155-2168`; `tests/gateway/test_matrix_media_gate_before_download.py` |
-| F6 | `_download_and_cache_media` downloads, validates encrypted metadata (`key.k`, `hashes.sha256`, `iv`) and decrypts. It names files from `body`, which can be a caption (MSC2530). `m.video` goes to the **document** cache with the body as its name. | `adapter.py:2201-2232` |
-| F7 | The runner routes each attachment by its own MIME before falling back to the message-level type. A `video/*` entry inside a PHOTO event is still treated as video (path note), and `image/*` entries attach as images. `audio/*` inside a PHOTO/VIDEO event enters STT; inside AUDIO/DOCUMENT it becomes an audio-file note. | `gateway/run_inbound.py:1431-1449`; `gateway/run.py:2494-2511` |
-| F8 | `adapter.py` is 3054 lines, over the 2000-line target, under a `# health: allow FILE_LINES` waiver. The ratchet caps it at its base size, so it may only shrink and new behaviour must go into a `<stem>_<topic>.py` sibling. | `scripts/code_health/config.py:22-36`; root `AGENTS.md` § Facade + siblings |
-| F9 | The Matrix stand-in advertises spec `v1.11`, so mautrix 0.21.1 `download_media` uses the **authenticated** `GET /_matrix/client/v1/media/download/{server}/{media_id}`. The stand-in has no media route and no way to post arbitrary content; unknown routes return 404 `M_UNRECOGNIZED`. | `tests/fakes/platforms/matrix_standin.py:139-163,213`; mautrix `media_repository.py:184-196` |
-| F10 | The edit check (`rel_type == m.replace`, which skips edits including `m.new_content` galleries) runs before msgtype routing, so gallery edits are already ignored. | `adapter.py:1937-1938` |
+| F1 | **Base drops galleries silently.** `_on_room_message` routes only `m.image/m.audio/m.video/m.file` and `m.text/m.notice`. Anything else falls through with no log. Live evidence (sanitized): `m.room.message`, `msgtype: dm.filament.gallery`, `body: "what images do you see?"`, two plain `m.image` `image/png` MXC items, key set `{body, itemtypes, m.mentions, msgtype}`. | base `adapter.py:1948-1951` |
+| F2 | Each media event calls `handle_message` once, so N separate events make N turns. | base `adapter.py:2181-2186` |
+| F3 | `MessageEvent` carries the parallel lists `media_urls`, `media_types` and `media_filenames`. The busy merge (`extend_media`) preserves them. | `gateway/platforms/event.py`; `gateway/session_envelope.py` |
+| F4 | `_resolve_message_context` is the one mention/thread/room-allowlist seam. It returns the mention-stripped body. Read receipt and thread mark run once. | `adapter.py:1956-2023` |
+| F5 | **Sender allowlisting (`MATRIX_ALLOWED_USERS`) is enforced by the gateway runner after the adapter dispatches:** silent drop in groups, pairing code in DMs. The adapter checks system/bridge senders, ignore patterns and the room allowlist before routing. | `adapter.py:1896-1918`; `gateway/authz_mixin.py:707`; `gateway/run_inbound.py:80-81` |
+| F6 | The edit check (`rel_type == m.replace`) runs before msgtype routing, so gallery edits are ignored. | `adapter.py:1937-1938` |
+| F7 | The runner routes each attachment by its own MIME. Audio inside a PHOTO/VIDEO event goes through STT. | `gateway/run_inbound.py`, `gateway/run.py` |
+| F8 | `adapter.py` is over the 2000-line target under a `FILE_LINES` waiver and may only shrink. Base: 3054 lines. HEAD: 3047 lines. | `scripts/code_health/config.py` |
+| F9 | **mautrix 0.21.1** (locked, `mautrix[encryption]`) keeps unknown content keys such as `itemtypes` in `SerializableAttrs.unrecognized_` and returns them from `serialize()`. Synced events and Megolm-decrypted events share that deserializer, so encrypted-room galleries reach the same `source_content`. | `mautrix/types/util/serializable_attrs.py` (`_dict_to_attrs`, `_attrs_to_dict`) at tag v0.21.1 |
+| F10 | **Element sender wire shape** (read-only, `element-web` @ `d698eb223e`; the `puny-cow` copy is byte-identical). Real names: `GALLERY_MSGTYPE`, `STABLE_GALLERY_MSGTYPE`, `GalleryItemContent`, `GalleryEventContent`, `createGalleryEventContent` (there is no `GalleryContent`/`createGalleryContent`). Details follow the table. | `apps/web/src/utils/MediaCaptionContent.ts`; `ContentMessages.ts:833-923`; `utils/Reply.ts:52-91`; `utils/messages.ts:46,122` |
+| F11 | `main` itself fails `scripts/check` agents-md: root `AGENTS.md` is 12,307 chars against the 12,000 cap after `db722732ad`. Commit `4141702a82` trims it to 11,937. | `scripts/ci/check_agents_md_size.py:24` |
+| F12 | The default test environment (`pm.testenv`, `[all]`) **excludes the `matrix` extra**, and so do CI's test lanes. Matrix-extra tests skip unless `HERMES_PYTHON` points at an environment built with `--extra matrix`. `scripts/run_tests.sh --fail-on-skip` turns any skip into a failure. | `pyproject.toml` `all = [...]` comment; `pm/testenv.py:19`; `.github/workflows/tests.yml:75`; `scripts/run_tests_parallel.py:1108,1345` |
+| F13 | Type checking (`ty`) runs advisory-only in CI (`--exit-zero` diff report). There is no Python coverage gate. Docs CI runs `check_doc_links.py` and a Docusaurus build on website changes. | `.github/workflows/lint.yml:86`; `docs-site-checks.yml` |
 
-## 1. Goal and acceptance criteria
+F10 in detail:
 
-**Goal.** An inbound Matrix MSC4274 gallery (`msgtype: dm.filament.gallery`, stable alias
-`m.gallery`) becomes **one** `MessageEvent` and **one** agent turn. The event carries the shared
-caption and the items' cached media in item order.
+- Outgoing galleries have 2–60 image/video items. One file falls back to a normal single-media
+  event, with the caption in `body` and the name in `filename`.
+- Each item is `{itemtype, body: file.name, info: {...w, h, thumbnail_info, thumbnail_url |
+  thumbnail_file, mimetype, size} (video adds duration), url}` for plain media, or
+  `{..., file: {v:"v2", key{alg,ext,k,key_ops,kty}, iv, hashes{sha256}, url}}` for encrypted
+  media. **Items carry no `filename` field.**
+- Event content is `{msgtype: "dm.filament.gallery", body: caption-or-"", [format,
+  formatted_body], itemtypes, m.mentions}` (`attachMentions` always runs), plus `m.relates_to`.
+  The relation is either a thread (`rel_type: m.thread`, `event_id`, `is_falling_back`,
+  `m.in_reply_to`) or a reply mixin. **The body never contains a reply fallback.**
+- On receipt Element accepts both `dm.filament.gallery` and `m.gallery`, with itemtypes from
+  image/video/audio/file.
 
-**Acceptance criteria** (each is proven by a test named in §4/§5):
+## 2. Goal and acceptance criteria
 
-- **AC1 – Routing.** Both msgtypes route to the gallery handler only after the existing self /
-  bridge / ignore-pattern / room-allow / dedup / startup-grace / `m.replace` / `m.notice` /
-  interactive-UI checks. A gallery `m.replace` edit is still ignored. Other unknown msgtypes are
-  still dropped.
-- **AC2 – Gate once, before any download.** `_resolve_message_context` runs exactly once per
-  gallery, with the shared caption as `body` and the gallery `content` (so `m.mentions.user_ids`
-  and `formatted_body` pills count). A gated-out gallery performs **zero** `download_media` calls
-  and no dispatch.
-- **AC3 – Per-item validation.** An item is accepted only if it has a plain `url` or a `file.url`,
-  either one starting with `mxc://`. A declared `info.size` above `_max_media_bytes` is rejected
-  before download, as is an encrypted `file` missing `key.k`, `hashes.sha256` or `iv`. An
-  unknown itemtype, a non-dict item, or an item past position 60 is skipped. Every skipped or
-  failed item appears in a missing-items note, and one bad item never drops the caption or the
-  turn.
-- **AC4 – Ordered download/cache.** Accepted items are downloaded, decrypted and cached
-  **sequentially in item order**, using the existing download/decrypt helper. Images go to the
-  image cache, videos to `cache_video_from_bytes_async`, audio to the audio cache, and files to
-  the document cache.
-- **AC5 – One dispatch.** Exactly one `handle_message` call per gallery:
-  - `text` is the caption after the existing reply-fallback strip and mention strip (`""` when
-    uncaptioned), plus the missing-items note when any item is missing.
-  - `media_urls` / `media_types` / `media_filenames` are parallel lists in item order.
-  - `message_type` follows D1.
-  - `raw_message` is the gallery `content`.
-  - `reply_to_*` and thread fields are set exactly as for other media.
-- **AC6 – All items fail.** The caption plus the note is still dispatched, once, with no media.
-- **AC7 – No regressions.** Single-media and text behaviour and all existing tests are unchanged.
-  The one intentional single-media change is D3: a captioned single media event uses
-  `content.filename` for its cache name and extension.
-- **AC8 – Real E2E.** A feature journey drives the real `hermes gateway run` child against the
-  Matrix stand-in and the recording fake LLM, and shows one model request per gallery with the
-  images in order.
+**Goal.** An inbound Matrix gallery (`dm.filament.gallery` or `m.gallery`) becomes exactly **one**
+`MessageEvent` and **one** agent turn. That event carries the shared caption and every loadable
+item, in sender order. Room, thread, reply, mention, authorization and dedup semantics match the
+existing single-media path.
 
-## 2. Decisions
+Each criterion is proven by a test named in §4 or §6.
 
-Accepted by the user at approval as written.
-
-| # | Topic | Recommended default |
-|---|---|---|
-| D1 | `message_type` | Computed over **delivered** items: `PHOTO` if any image was cached, else `VIDEO` if any video was cached, else `DOCUMENT` if any audio/file item was cached, else `TEXT` (all failed). This matches "PHOTO if image present else VIDEO" for every image/video gallery. The two extra rungs stop a zero-media event from claiming PHOTO (which would trigger busy-path photo queueing and an empty vision placeholder) and keep an audio-only gallery as a file note instead of STT (F7). |
-| D2 | Tolerated `m.audio` / `m.file` items | Accepted and cached (audio cache / document cache) with their real MIME. Known consequence (F7): an audio item inside a PHOTO/VIDEO gallery goes through STT like a voice note, because per-item routing is core behaviour, which this plugin change does not alter. |
-| D3 | Single-media filename | `_handle_media_message` passes `content.filename` (non-empty str) or else `body` as the cache-name source. This fixes captioned `m.file`/`m.audio`/`m.video` being cached under the caption with no extension. Captions, text blanking (`_is_bare_media_filename`) and routing stay as they are. |
-| D4 | Single-media video cache | **Unchanged**: it stays in the document cache under its original name, which preserves current paths (AC7). Gallery videos use `cache_video_from_bytes_async` and carry the original name in `media_filenames`, because video cache names are random. |
-| D5 | Gallery limits | Fixed constant `MAX_GALLERY_ITEMS = 60`, matching the sender's 2..60. A gallery with 1 item is accepted. Items past 60 are counted in the note, not downloaded. There is no new env var or config key and no aggregate byte cap. The per-item cap is `MATRIX_MAX_MEDIA_BYTES`, checked against `info.size` before download and against the real byte length after. |
-| D6 | Failed items | No HTTP-URL fallback (unlike single unencrypted media). A failed item is skipped and noted. Authenticated-media URLs aren't usable by tools anyway. |
-| D7 | Missing-items note | A model-facing English line appended after the caption with a blank line between (or the whole text when uncaptioned). Not i18n, like the runner's other attachment notes. Examples: `[Gallery: 2 of 5 items could not be loaded: item 2 'b.png' (larger than the 104857600-byte media limit), item 4 'c.mov' (download failed)]`, `[Gallery: none of the 3 items could be loaded: …]`, `[Gallery: the message contained no media items]`, and a `; N more items beyond the 60-item gallery limit were not loaded` suffix. Filenames pass through `clean_attachment_filename`. |
-| D8 | Commands in captions | Parity with single media: no `!cmd` bang normalization. A caption starting with `/` keeps today's media semantics (the mention-gate bypass in `_resolve_message_context`, and `MessageEvent.is_command()`). |
+- **AC1 – Routing.** Both msgtypes reach the gallery handler, and only after the existing checks
+  (self, bridge, ignore-pattern, room-allow, dedup, startup-grace, `m.replace`, `m.notice`,
+  interactive-UI). A gallery edit is ignored. A duplicate event ID dispatches once. Other unknown
+  msgtypes are still dropped.
+- **AC2 – Gate once, before any download.** `_resolve_message_context` is awaited exactly once,
+  with the caption and the gallery content, so `m.mentions.user_ids` and `formatted_body` pills
+  count. A gated-out gallery makes **zero** `download_media` calls and no dispatch. A gallery in a
+  thread where the bot participates needs no mention, exactly as for text.
+- **AC3 – Item validation.** An item is accepted only with a `url` or `file.url` starting with
+  `mxc://`. These are skipped and noted: `info.size` over `MATRIX_MAX_MEDIA_BYTES`, an encrypted
+  item missing `key.k`, `hashes.sha256` or `iv`, an unknown or non-string itemtype, and a
+  non-dict item. Items past 60 are counted and not loaded. No single bad item drops the caption or
+  the turn.
+- **AC4 – Ordered fetch.** Accepted items are downloaded, decrypted when encrypted and cached
+  sequentially in item order. Images go to the image cache (non-image bytes are rejected), video to
+  `cache_video_from_bytes_async`, audio to the audio cache and files to the document cache.
+- **AC5 – One dispatch.** Exactly one `handle_message` per gallery, with:
+  - `text`: the caption after the reply-fallback and mention strip (`""` when uncaptioned), plus
+    the D7 note when any item is missing.
+  - The parallel media lists in item order.
+  - `message_type` per D1.
+  - `raw_message is content`.
+  - `reply_to_*` and `source.thread_id` set exactly as for single media.
+- **AC6 – All items fail.** The caption plus the note is dispatched once, with `TEXT` and no media.
+- **AC7 – Authorization parity (D9).** Sender allowlisting is unchanged. An unauthorized sender's
+  gallery never produces a model turn or a group reply; DMs follow the existing pairing flow.
+- **AC8 – Sender compatibility.** Every Element `createGalleryEventContent` shape (F10) and the
+  sanitized live shape (F1) is delivered as one turn with all items in order. This covers plain,
+  encrypted, uncaptioned, HTML-captioned, threaded and reply cases. It holds for content that went
+  through mautrix's real deserializer as well as for a plain dict.
+- **AC9 – No regressions.** Single-media and text behaviour is unchanged, apart from D3. All
+  existing tests show no new failures against base (§5.2 C8).
+- **AC10 – Real E2E.** The §6 journey passes, not skipped, against the real `hermes gateway run`
+  child, the Matrix stand-in and the recording fake model.
 
 ## 3. Design
 
-### 3.1 Module boundaries
+### 3.1 Decisions
 
-`adapter.py` is a facade over the file-lines cap (F8), so behaviour goes in two new siblings and
-the facade only wires them, ending with a net **negative** line count.
+D1–D8 are preserved and re-confirmed by the user in revision 2. D9–D11 are new in revision 2.
+
+| # | Decision |
+|---|---|
+| D1 | `message_type` is computed over **delivered** items: `PHOTO` if any image was cached, else `VIDEO` if any video, else `DOCUMENT` if any audio or file, else `TEXT`. |
+| D2 | `m.audio` and `m.file` items are accepted and cached with their real MIME. Audio inside a PHOTO/VIDEO gallery goes through STT (core per-item routing, F7). This is documented, not changed. |
+| D3 | Captioned single media uses `content.filename` (a non-empty string) for its cache name, falling back to `body`. This also covers Element's one-file fallback. Text blanking and routing are unchanged. |
+| D4 | Single-media video stays in the document cache under its original name. Gallery videos use the video cache, and the original name goes in `media_filenames`. |
+| D5 | `MAX_GALLERY_ITEMS = 60` is a fixed constant. A 1-item gallery is accepted. The per-item cap is `MATRIX_MAX_MEDIA_BYTES`, checked against `info.size` before download and against the actual length after. No new env var, config key or aggregate cap. |
+| D6 | A failed item has no HTTP-URL fallback; it is skipped and noted. |
+| D7 | A model-facing English note goes after the caption, separated by a blank line (or is the whole text when there is no caption). Filenames pass through `clean_attachment_filename`. Forms: `[Gallery: K of N items could not be loaded: item P 'name' (reason), …]`, `[Gallery: none of the N items could be loaded: …]`, `[Gallery: the message contained no media items]`, plus the suffix `; M more items beyond the 60-item gallery limit were not loaded`. |
+| D8 | Captions get no `!cmd` bang normalization, matching single media. A leading `/` keeps today's media semantics. |
+| D9 | **Authorization parity with single media** (user decision). There is no pre-download allowlist check: the runner decides after dispatch. Accepted consequence: an unauthorized member of an allowed room can make Hermes fetch up to 60 items (each ≤ `MATRIX_MAX_MEDIA_BYTES`) before rejection. A pre-download check through `_is_authorized_source` is a possible follow-up. |
+| D10 | **Delivery: merge into `main` after all gates and review** (user decision). This supersedes revision 1's branch-only wording. Process in §4.3. |
+| D11 | **Keep `4141702a82` as its own commit** (user decision). It is an unrelated guard fix for F11 (a project-tree trim in root `AGENTS.md`, with no rule text changed), reviewed separately from the feature diff. If `main` or `matrix-command-descriptions` changes `AGENTS.md` first, the rebase takes the landed text, re-trims only if still over 12,000 chars, and reruns `scripts/check --only agents-md`. |
+
+### 3.2 Module boundaries (preserved, unchanged)
 
 | Module | Owns |
 |---|---|
-| `plugins/platforms/matrix/adapter_media.py` (new) | The inbound media fetch primitive shared by single media and galleries: encrypted-metadata validation, MXC download, decryption, the image-extension map, and filename preference. Moved out of `_download_and_cache_media`, which keeps its signature and its caching tail. |
-| `plugins/platforms/matrix/adapter_gallery.py` (new) | The MSC4274 parser (pure), per-item caching, message-type choice, note formatting and the dispatch orchestration. |
-| `plugins/platforms/matrix/adapter.py` (edit) | One routing branch in `_on_room_message`. `_download_and_cache_media` calls `adapter_media.fetch_media_bytes` and uses `IMAGE_EXT_BY_MIME`, with D3 applied in `_handle_media_message`. |
+| `plugins/platforms/matrix/adapter_media.py` (new) | The shared inbound fetch primitive: MXC download, encrypted-file key validation, `decrypt_attachment`, `IMAGE_EXT_BY_MIME`, and the MSC2530 filename preference. |
+| `plugins/platforms/matrix/adapter_gallery.py` (new) | The pure parser, per-item caching, D1 type choice, the D7 note, and dispatch orchestration. |
+| `plugins/platforms/matrix/adapter.py` (edit) | One routing branch, `_download_and_cache_media` delegating to `fetch_media_bytes` (signature and WARNINGs unchanged), and D3 in `_handle_media_message`. Net −7 lines. |
 
-Siblings late-import the facade inside functions where they need its names (`ContentURI` stub
-fallback). There is no module-level cycle. `adapter.py` imports `adapter_gallery` at module level
-(gallery imports nothing from the facade at import time).
+Siblings late-import the facade only inside functions (`ContentURI`), so there is no module-level
+cycle. `gateway/`, `run_agent.py` and `MessageEvent` are untouched (plugins never touch core).
 
-### 3.2 Interfaces (exact signatures)
+### 3.3 Interfaces (exact, as implemented)
 
 ```python
 # plugins/platforms/matrix/adapter_media.py
-IMAGE_EXT_BY_MIME: dict[str, str]  # {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"} (moved)
-
-def encrypted_file_keys(encrypted_file: dict) -> Optional[tuple[str, str, str]]:
-    """(key.k, hashes.sha256, iv) of an MSC encrypted-file dict, or None when any is missing.
-    Accepts ``key`` as a JWK dict or a bare string, exactly as today."""
-
+IMAGE_EXT_BY_MIME: dict[str, str]  # image/jpeg .jpg, image/png .png, image/gif .gif, image/webp .webp
+def encrypted_file_keys(encrypted_file: dict) -> Optional[tuple[str, str, str]]: ...
+    # (key.k | bare key, hashes.sha256, iv), or None when any is missing or not a non-empty str
 async def fetch_media_bytes(client: Any, url: str, event_id: str,
-                            encrypted_file: Optional[dict]) -> Optional[bytes]:
-    """``client.download_media(ContentURI(url))`` then ``decrypt_attachment`` when *encrypted_file*
-    is given. None when the download is empty or decryption metadata is missing (logs the existing
-    WARNING). Transport and decryption errors propagate to the caller."""
+                            encrypted_file: Optional[dict]) -> Optional[bytes]: ...
+    # download_media(ContentURI(url)) and decrypt_attachment when encrypted.
+    # None on empty data or missing keys (existing WARNING). Transport/crypto errors propagate.
+def media_filename(content: dict) -> str: ...  # non-empty str filename, else str body, else ""
 
-def media_filename(content: dict) -> str:
-    """MSC2530: ``content['filename']`` when a non-empty str, else ``content['body']`` (or "")."""
-```
-
-```python
 # plugins/platforms/matrix/adapter_gallery.py
 GALLERY_MSGTYPES: frozenset[str] = frozenset({"dm.filament.gallery", "m.gallery"})
 MAX_GALLERY_ITEMS = 60
-
-@dataclass(frozen=True)
-class GalleryItem:
-    position: int                    # 1-based index in content["itemtypes"]
-    itemtype: str                    # m.image | m.video | m.audio | m.file
-    kind: MessageType                # PHOTO | VIDEO | AUDIO | DOCUMENT
-    filename: str                    # clean_attachment_filename(media_filename(item)); "" if unusable
-    mimetype: str                    # info.mimetype, else the kind default (image/png, video/mp4, audio/ogg, application/octet-stream)
-    url: str                         # mxc:// URI (plain url or file.url)
-    encrypted_file: Optional[dict]   # the item's ``file`` dict when encrypted
-
-@dataclass(frozen=True)
-class GallerySkip:
-    position: int
-    filename: str
-    reason: str                      # short model-facing reason (D7)
-
-@dataclass(frozen=True)
-class GalleryParse:
-    items: list[GalleryItem]         # accepted, in item order
-    skipped: list[GallerySkip]       # rejected before download, in item order
-    total: int                       # len(itemtypes) when it is a list, else 0
-    over_limit: int                  # items past MAX_GALLERY_ITEMS (neither parsed nor listed)
-
+@dataclass(frozen=True) class GalleryItem:  position: int; itemtype: str; kind: MessageType; filename: str
+                                            mimetype: str; url: str; encrypted_file: Optional[dict]
+@dataclass(frozen=True) class GallerySkip:  position: int; filename: str; reason: str
+@dataclass(frozen=True) class GalleryParse: items: list[GalleryItem]; skipped: list[GallerySkip]
+                                            total: int; over_limit: int
 def parse_gallery(content: dict, *, max_media_bytes: int) -> GalleryParse: ...
-async def cache_gallery_item(data: bytes, item: GalleryItem) -> str: ...   # cache path; ValueError for non-image bytes
-def gallery_message_type(kinds: Sequence[MessageType]) -> MessageType: ... # D1 over delivered kinds
-def missing_items_note(total: int, missing: Sequence[GallerySkip], over_limit: int) -> str: ...  # "" when nothing missing
+async def cache_gallery_item(data: bytes, item: GalleryItem) -> str: ...  # ValueError: non-image bytes
+def gallery_message_type(kinds: Sequence[MessageType]) -> MessageType: ...
+def missing_items_note(total: int, missing: Sequence[GallerySkip], over_limit: int) -> str: ...
+async def _fetch_gallery_items(adapter, event_id, items) -> tuple[list[str], list[str], list[str],
+                                                                  list[MessageType], list[GallerySkip]]: ...
 async def handle_gallery_message(adapter: "MatrixAdapter", room_id: str, sender: str, event_id: str,
                                  source_content: dict, relates_to: dict, msgtype: str) -> None: ...
+
+# tests/fakes/platforms/matrix_standin.py (test seam)
+MatrixStandin.put_media(data: bytes, *, media_id: str | None = None) -> str  # "mxc://standin.local/<id>"
+MatrixStandin.post_content(room_id: str, sender: str, content: dict) -> str  # event_id; post() delegates
+# Route GET /_matrix/client/v1/media/download/{server_name}/{media_id}: Bearer-checked raw bytes,
+# recorded as "media_download"; unknown media or foreign server gives 404 M_NOT_FOUND.
 ```
 
-Existing seams this consumes (unchanged signatures): `MatrixAdapter._resolve_message_context`,
-`_build_inbound_event(..., ctx=..., media_msgtype=...)`, `handle_message`, `_max_media_bytes`,
-`_client`, plus `gateway.platforms.base.cache_{image,video,audio,document}_from_bytes_async` and
-`gateway.platforms.event.clean_attachment_filename`.
+Existing seams consumed, with signatures unchanged: `_resolve_message_context`,
+`_build_inbound_event(..., ctx=, media_msgtype=)`, `handle_message`, `_max_media_bytes`,
+`_client`, `gateway.platforms.base.cache_{image,video,audio,document}_from_bytes_async`, and
+`clean_attachment_filename`.
 
-### 3.3 Data flow
+### 3.4 Data flow
 
 ```
-_on_room_message (all existing checks, F10)
-  └─ msgtype in GALLERY_MSGTYPES → adapter_gallery.handle_gallery_message(self, room_id, sender, event_id,
-                                                                          source_content, relates_to, msgtype)
-       1. caption = body if isinstance(body, str) else ""
-       2. ctx = await adapter._resolve_message_context(room_id, sender, event_id, caption, source_content, relates_to)
-          └─ None → return                                   # AC2: no parse side effects, no download
-       3. parsed = parse_gallery(source_content, max_media_bytes=adapter._max_media_bytes)   # pure
-       4. for item in parsed.items (sequential, in order):
-            data = await fetch_media_bytes(adapter._client, item.url, event_id, item.encrypted_file)
-            None                       → miss "download failed"
-            len(data) > max            → miss "larger than the N-byte media limit"
-            path = await cache_gallery_item(data, item)
-              ValueError (image check) → miss "not a valid image"
-            other Exception            → logger.warning(..., exc_info=True); miss "download or decryption failed"
-            ok → urls/types/names/kinds append (item.mimetype, item.filename)
-       5. ev = await adapter._build_inbound_event(room_id, sender, event_id, caption, source_content, relates_to,
-               ctx=ctx, message_type=gallery_message_type(kinds), media_urls=urls, media_types=types,
-               media_filenames=names, media_msgtype=msgtype)
-          # reply-fallback strip + reply_to_* fields; gallery msgtype is never a "bare filename"
-       6. note = missing_items_note(parsed.total, sorted(parsed.skipped + misses, key=position), parsed.over_limit)
-          ev.text = f"{ev.text}\n\n{note}" if ev.text and note else (ev.text or note)
-       7. await adapter.handle_message(ev)                    # exactly once
+_on_room_message: existing checks (F5, F6) → msgtype ∈ GALLERY_MSGTYPES
+ → handle_gallery_message
+   1. caption = body if str else ""
+   2. ctx = _resolve_message_context(... caption, content, relates_to) ; None → return   (no parse, no I/O)
+   3. parsed = parse_gallery(content, max_media_bytes)                                 (pure; items[:60])
+   4. for item in parsed.items, sequentially:
+        fetch_media_bytes → None: "download failed"
+                          → len > max: size reason
+        cache_gallery_item → ValueError for PHOTO: "not a valid image"
+        any other Exception → WARNING with exc_info, "download or decryption failed"
+   5. ev = _build_inbound_event(..., ctx=ctx, message_type=D1, media_*=lists, media_msgtype=msgtype)
+   6. ev.text += D7 note (missing items sorted by position)
+   7. INFO "Matrix gallery %s: %d/%d items cached"
+   8. await handle_message(ev)                                                         (exactly once)
 ```
 
-`cache_gallery_item` routing:
-- PHOTO: `cache_image_from_bytes_async(data, ext=IMAGE_EXT_BY_MIME.get(mime, ".jpg"))`.
-- VIDEO: `cache_video_from_bytes_async(data, ext=<filename suffix> or ".mp4")`.
-- AUDIO: `cache_audio_from_bytes_async(data, ext=<filename suffix> or ".ogg")`.
-- DOCUMENT: `cache_document_from_bytes_async(data, item.filename or "document")`.
+The runner then authorizes per D9, canonicalizes identity, applies busy-queue/media merge and
+routes each attachment by MIME. All of that is unchanged core.
 
-Suffixes are lower-cased, and only a short alphanumeric `.xxx` suffix is accepted.
+### 3.5 Error handling and conventions
 
-`parse_gallery` per item, in order:
-1. If not a dict, or past position 60 (counted in `over_limit` only), skip.
-2. An itemtype outside `_ITEM_KINDS` → "unsupported item type".
-3. `url` = plain `url`, else `file.url`. Missing → "no media URL"; not `mxc://` → "not a Matrix
-   media URL".
-4. `info` is a dict or else `{}`. If `int(info.size)` > max → size reason. A non-numeric size
-   counts as unknown, as in the single-media path.
-5. An encrypted item with `encrypted_file_keys(file) is None` → "missing decryption keys".
-
-### 3.4 Error handling and conventions
-
-- Per-item failures never escape the loop. Exceptions are caught at that single item boundary
-  with `logger.warning(..., exc_info=True)` (BLE001-compliant). Cancellation (`BaseException`)
-  propagates. Gate, build and dispatch errors propagate exactly as for single media.
-- Logs never include decryption keys, hashes or caption text. Item positions, itemtype and
-  `_redact_url_for_log`-safe MXC IDs are allowed. One INFO line per gallery:
-  `Matrix gallery %s: %d/%d items cached`.
-- No new env vars, config keys or core changes. `gateway/`, `run_agent.py` and `MessageEvent`
-  are untouched (plugins-never-touch-core).
-- Function CC ≤ 20 and nesting ≤ 6. `handle_gallery_message` delegates the item loop to a
-  private `_fetch_gallery_items(adapter, event_id, items) -> tuple[list, list, list, list,
-  list[GallerySkip]]` to stay small.
-- `adapter.py` ends at ≤ 3054 lines (F8). The fetch extraction saves more lines than the routing
-  branch adds; the implementer confirms with `python scripts/check`.
-- User docs: one short paragraph in `website/docs/user-guide/messaging/matrix.md` (next to the
-  media-limit paragraph, ~line 331) covering inbound galleries as one turn, the 60-item limit and
-  missing-item notes.
+- Per-item failures are contained at the item boundary. `BaseException` (cancellation)
+  propagates. Gate, build and dispatch errors propagate as they do for single media.
+- Logs never contain keys, hashes or caption text.
+- CC ≤ 20 and nesting ≤ 6 per function. `adapter.py` must not exceed its base size.
+- User docs: one paragraph in `website/docs/user-guide/messaging/matrix.md` (preserved). The
+  zh-Hans translation is not updated; there is no translation-sync rule.
+- Behaviour that parity carries over: profile scope and identity are handled by the base
+  `handle_message` seam, exactly as for single media.
 
 ## 4. Tasks
 
-One cohesive task; splitting the wiring from its tests would be artificial.
+### 4.1 T1: sender-compatibility and authorization verification delta (single wave)
 
-| Field | T1 — gallery inbound + tests + E2E |
+| Field | Value |
 |---|---|
-| Wave | 1 (only) |
-| Dependencies | None. Shared build resource: the disposable PM env `.venv` with `--extra matrix` (§5.1), built once before T1 runs; only one builder at a time. |
-| Owned files | `plugins/platforms/matrix/adapter_media.py` (new), `plugins/platforms/matrix/adapter_gallery.py` (new), `plugins/platforms/matrix/adapter.py` (edit), `tests/plugins/platforms/matrix/test_gallery_inbound.py` (new), `tests/plugins/platforms/matrix/test_inbound_media_filename.py` (new), `tests/fakes/platforms/matrix_standin.py` (edit: media route, `put_media`, `post_content`), `tests/e2e/core/platforms/test_matrix_standin_smoke.py` (edit: stand-in media-route honesty test), `tests/e2e/core/platforms/test_matrix_gallery_inbound.py` (new), `website/docs/user-guide/messaging/matrix.md` (edit) |
-| Consumes | §3.2 existing seams; `mautrix.crypto.attachments.{decrypt,encrypt}_attachment` (matrix extra); `GatewayUnderTest`, `Director`, `FakeLLMServer`, `MatrixDriver` |
-| Produces | §3.2 interfaces; `MatrixStandin.put_media(data: bytes, *, media_id: str \| None = None) -> str` (returns `mxc://standin.local/<id>`); `MatrixStandin.post_content(room_id: str, sender: str, content: dict) -> str` (returns `event_id`; `post()` delegates to it); stand-in route `GET /_matrix/client/v1/media/download/{server_name}/{media_id}` (Bearer-checked, raw bytes, recorded as method `media_download`, unknown media → 404 `M_NOT_FOUND`) |
-| Unit test command | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/plugins/platforms/matrix/test_gallery_inbound.py tests/plugins/platforms/matrix/test_inbound_media_filename.py -v` |
-| External dependencies | None at runtime. Tests need the `matrix` extra (mautrix 0.21.1 + crypto) for encryption tests and the E2E. No network, real accounts or providers. |
+| Goal | Prove AC7 and AC8 with Element-exact and live-shape fixtures, the real mautrix deserializer and an unauthorized-sender E2E step. Fix only defects these tests expose. |
+| Dependencies | None for code. C0 (environment) must finish before any test command. |
+| Owned files | `tests/plugins/platforms/matrix/test_gallery_sender_compat.py` (**new**); `tests/e2e/core/platforms/test_matrix_gallery_inbound.py` (edit). Conditional: `tests/fakes/platforms/matrix_standin.py` plus `tests/e2e/core/platforms/test_matrix_standin_smoke.py`, only if a non-member sender's events are not delivered, to add `MatrixStandin.add_member(room_id: str, user_id: str) -> None` with an honesty test. Conditional: `plugins/platforms/matrix/adapter_gallery.py`, only for a defect proven red by a new test. |
+| Consumes | §3.3 interfaces; `mautrix.types` deserializer and `mautrix.crypto.attachments.encrypt_attachment`; `make_adapter` from `test_inbound_media_filename.py`; `MatrixDriver`, `GatewayUnderTest`, `Director`, `FakeLLMServer`. |
+| Produces | The test modules below. No new production interface. Possibly `add_member`. |
+| Unit command | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh --fail-on-skip tests/plugins/platforms/matrix/test_gallery_sender_compat.py -v` |
+| External dependencies | None at runtime. Element source is read only to transcribe fixtures. |
 
-### 4.1 Unit coverage (`test_gallery_inbound.py`)
+`test_gallery_sender_compat.py` holds a fixture builder `element_gallery(...)`. It transcribes
+`createGalleryEventContent`, `withMediaCaption`, `attachMentions`, `attachRelation` and
+`addReplyToMessageContent` at element-web `d698eb223e`, with a provenance comment naming the files
+and lines from F10. The item builder emits `body = file name`, **no `filename`**, `info` with
+`mimetype`/`size`/`w`/`h` and optional thumbnail fields, and either `url` or
+`file{v,key,iv,hashes,url}` from a real `encrypt_attachment`. Every case drives
+`_on_room_message` and asserts exactly one `handle_message`.
 
-Build the adapter as `tests/gateway/test_matrix_media_gate_before_download.py` does. Fake
-`_client.download_media` with an `AsyncMock` keyed by MXC URI, run the real cache helpers under
-the autouse temp `HERMES_HOME`, and capture `handle_message`.
+1. **Live shape (F1):** exact key set `{msgtype, body, itemtypes, m.mentions}`, two plain PNG
+   items, caption `what images do you see?`.
+   - `text` equals the caption.
+   - `media_types == ["image/png"] * 2`.
+   - `media_filenames` equal the item bodies.
+   - Cached bytes are in order.
+   - `message_type == PHOTO`.
+2. **Encrypted:** 2 and 60 items with `thumbnail_file`. All are decrypted to their original bytes,
+   in order.
+3. **Uncaptioned:**
+   - DM (`body: ""`, `m.mentions: {}`): `text == ""`, no note.
+   - Group with require-mention and no mention: zero downloads, no dispatch (documented behaviour).
+   - Group in a bot-participated thread: dispatched without a mention.
+4. **HTML caption:** `format`/`formatted_body` with a bot pill and `m.mentions.user_ids`, in a
+   group with require-mention. Dispatched with the mention stripped.
+5. **Thread mixin:** `{rel_type: m.thread, event_id: $root, is_falling_back: true,
+   m.in_reply_to}` gives `source.thread_id == $root`. **Reply mixin** without a thread gives
+   `reply_to_message_id`, and the body has no fallback to strip.
+6. **`m.gallery` alias** of case 1: identical result.
+7. **mautrix seam:** a raw `m.room.message` event dict for case 1 (and case 2 with 2 items) goes
+   through mautrix's real event deserializer (`mautrix.types.Event.deserialize` or the class the
+   client's sync uses; the implementer confirms which) and then to `_on_room_message`. `itemtypes`
+   survive and the same single dispatch results. This proves F9 for synced and decrypted events.
 
-1. **Parsing** (`parse_gallery`, pure): plain `url`; `file.url`; non-MXC `url` and non-MXC
-   `file.url` rejected; `info.size` over the cap skipped; non-numeric size treated as unknown;
-   missing URL; unknown itemtype; non-dict item; `itemtypes` missing or not a list → `total == 0`;
-   61 items → 60 parsed, `over_limit == 1`; encrypted item missing `k`/`iv`/`sha256` skipped;
-   `filename` preferred over `body`; unsafe filename cleaned.
-2. **Routing**: `dm.filament.gallery` and **stable alias `m.gallery`** both dispatch;
-   an `m.replace` gallery edit with `m.new_content` → no dispatch, no download; an unknown
-   msgtype → no dispatch; self sender → no dispatch; a duplicate event ID → one dispatch.
-3. **Gating before download**: group room with require-mention on.
-   - Unmentioned → zero `download_media` awaits and zero dispatch.
-   - `m.mentions.user_ids` with an empty caption → dispatch.
-   - `formatted_body` pill → dispatch.
-   - `@hermes:example.org look` → text `look`.
-   - `_resolve_message_context` awaited exactly once (spy).
-4. **Encryption** (`pytest.importorskip("mautrix.crypto.attachments", reason="requires the
-   matrix extra")`): a real `encrypt_attachment` item is decrypted and cached with the original
-   bytes. A bad `hashes.sha256` → that item is noted and the rest still delivered.
-5. **Mixed order**: image, video, file, image → `media_urls` order matches.
-   - `media_types == [image/png, video/mp4, application/pdf, image/jpeg]`; `media_filenames`
-     hold the original names.
-   - The video path is under `get_video_cache_dir()`; `message_type == PHOTO`.
-   - `download_media` call order equals item order.
-6. **Empty caption**: `body == ""`, all items OK → `text == ""`, no note.
-7. **Partial failure**: one `download_media` returns `None`, one raises, one is oversized →
-   the note lists exactly those positions and names, the caption is preserved, and the others are
-   delivered.
-8. **All failure**: `message_type == TEXT`, no media, `text == caption + "\n\n" + note`, one
-   dispatch. An uncaptioned all-failed gallery → `text == note`.
-9. **ONE dispatch**: a 5-item gallery → `handle_message.await_count == 1`.
-10. **Reply/thread**:
-    - Reply: `m.in_reply_to` with a reply-fallback body → `reply_to_message_id`,
-      `reply_to_text` and `reply_to_author_id` set, and the caption stripped of the fallback.
-    - Thread: `m.thread` → `source.thread_id == root`.
-    - `raw_message is content`.
-11. **Message type (D1)**: video-only → VIDEO; file-only → DOCUMENT; image-failed with a video
-    OK → VIDEO.
+All mautrix imports use `pytest.importorskip(..., reason="requires the matrix extra")` and must
+execute under `--fail-on-skip`.
 
-`test_inbound_media_filename.py` (D3, single media):
-- `m.file` with `body: "see attached"` and `filename: "report.pdf"` → cached name ends with
-  `report.pdf` and `text == "see attached"`.
-- `m.audio` with a caption and `filename: "a.m4a"` → `.m4a` extension.
-- With no `filename`, the body is used as before.
+The E2E edits are in §6: step 1 items in Element shape, the stranger step and the live-shape step.
+
+### 4.2 Conflicts and shared resources
+
+- T1 is the only implementation task, so there is no file overlap within this feature.
+- **`matrix-command-descriptions`** (separate worktree, clean at base) will probably edit
+  `plugins/platforms/matrix/adapter.py`, possibly `website/docs/user-guide/messaging/matrix.md`,
+  and it will also hit F11 on `AGENTS.md`. Its files and environment stay isolated in its own
+  worktree and `.venv`. Whichever branch lands second must:
+  1. Rebase onto the new `main`.
+  2. Resolve conflicts in the routing branch and import line of `adapter.py`, and in
+     `AGENTS.md` per D11.
+  3. Rerun C7, since the `adapter.py` `FILE_LINES` cap is judged on the combined file, plus C1–C6.
+- **Mutable resources:**
+  - `.venv/`: the PM build is serialized under `<git-dir>/e2e-feature-build.lock` and never
+    rebuilt while tests run.
+  - `test_durations.json`: written at the worktree root by the runner, so test commands in this
+    worktree run serially.
+  - `.hermes-sandbox/<run>/` and `--basetemp` directories are per run.
+  - The PM tool store and uv cache are shared, PM- and uv-locked, append-only caches.
+  - Stand-in and fake-LLM ports are ephemeral loopback ports.
+
+### 4.3 Order
+
+1. C0 environment.
+2. T1.
+3. All §5 gates on HEAD.
+4. **Consolidated review** of the whole feature diff `db722732ad..HEAD`, with `4141702a82`
+   reviewed separately as D11. No early review is planned, because no consequential uncertainty
+   remains.
+5. Delivery (D10):
+   1. Rebase onto the current local `main`, or merge if `main` is unchanged.
+   2. Rerun C1–C7 after any non-trivial rebase.
+   3. Rerun C6 if the routing, stand-in or gateway paths changed.
+   4. Rerun C8 as a comparison.
+   5. Fast-forward `main`.
+   6. No push, no deploy.
 
 ## 5. Test and verification
 
-### 5.1 Environment discovery and prerequisites
+### 5.1 Environment, discovery and prerequisites
 
-- **Runner:** always `scripts/run_tests.sh` (never bare pytest). It unsets credentials, sets
-  `TZ=UTC`/`LANG=C.UTF-8`, points `HERMES_HOME` at a temp dir and isolates each file in its own
-  subprocess. Preflight already ran `scripts/run_tests.sh
-  tests/plugins/platforms/matrix/test_event_size.py -q` → 2 passed, with
-  `HERMES_HOME=$PWD/.hermes-sandbox/preflight/home` and
-  `HERMES_RUNTIME_DIR=$PWD/.hermes-sandbox/preflight/runtime`.
-- **Interpreter with the matrix extra** (a shared build resource; build once, fresh; if `.venv`
-  exists, stop its processes and remove it deliberately first):
-  `python -m pm.build_env --source . --out .venv --group dev --group test --extra matrix`.
-  Then pass `HERMES_PYTHON="$PWD/.venv/bin/python"` to every run below so that matrix-extra
-  tests **execute, not skip**. The runner's default test env may omit the extra.
-- **Isolated state:** export `HERMES_HOME=$PWD/.hermes-sandbox/<run>/home` and
-  `HERMES_RUNTIME_DIR=$PWD/.hermes-sandbox/<run>/runtime` (`.hermes-sandbox/` is git-ignored).
-  Never touch `~/.hermes`. The E2E creates its own HOME under pytest `tmp_path`.
-- **Generated inputs:** none checked in. Test images are tiny PNG/JPEG byte literals built in the
-  test (they pass `_looks_like_image`). Video bytes are arbitrary (the video cache doesn't
-  validate content). Encrypted items are produced at test time by `encrypt_attachment`.
-- **Resource conflicts:** the stand-in and fake LLM bind ephemeral loopback ports, so there are
-  no fixed ports. The E2E spawns a gateway process group, so don't run two E2E journeys with the
-  same `tmp_path`. `.venv` must not be rebuilt while tests run.
-- **Skipped by instruction:** all desktop E2E suites (desktop core, visual regression, update,
-  installer/lifecycle). Real Synapse/Element browser E2E is out of scope (Element-web excluded).
+- **Runner:** always `scripts/run_tests.sh`, never bare pytest. It runs file-granular
+  subprocesses with `TZ=UTC` and `LANG=C.UTF-8`, credentials unset and a temp `HERMES_HOME`. When
+  not activated, it honors an explicit `HERMES_PYTHON` that has pytest. Discovery: the positional
+  paths below, or `tests/` by default. Runner option `--fail-on-skip` makes any skip a failure.
+  Bare pytest flags such as `-v` and `-rs` pass through.
+- **C0, the interpreter with the matrix extra.** Prerequisite: the worktree has no `.venv`, and
+  the system Python lacks pytest, mautrix and olm (orchestrator preflight). It runs once, under
+  the build lock, and the output must not already exist:
 
-### 5.2 Required check inventory
+  ```bash
+  cd /home/sinkerine/.paseo/worktrees/15zkmyhp/matrix-gallery-inbound
+  flock /home/sinkerine/dev/hermes-agent/.git/worktrees/matrix-gallery-inbound/e2e-feature-build.lock \
+    python -m pm.build_env --source . --out .venv --group dev --group test --extra matrix
+  .venv/bin/python -c "import pytest, mautrix, olm, mautrix.crypto.attachments; assert mautrix.__version__ == '0.21.1'; print('matrix extra OK')"
+  ```
 
-| # | Check | Command |
-|---|---|---|
-| C1 | New unit tests | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/plugins/platforms/matrix/test_gallery_inbound.py tests/plugins/platforms/matrix/test_inbound_media_filename.py -v` |
-| C2 | Matrix plugin tests (incl. interactive UI) | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/plugins/platforms/matrix/` |
-| C3 | Existing Matrix adapter regressions (single media, mention, voice, metadata, gate-before-download) | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/gateway/test_matrix.py tests/gateway/test_matrix_media_gate_before_download.py tests/gateway/test_matrix_media_filename.py tests/gateway/test_matrix_mention.py tests/gateway/test_matrix_message_event_metadata.py tests/gateway/test_matrix_voice.py tests/gateway/test_matrix_secret_capture.py tests/gateway/test_matrix_project_context_isolation.py` |
-| C4 | Shared-boilerplate / plugin contract | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/gateway/test_shared_platform_boilerplate.py` |
-| C5 | Stand-in honesty + existing Matrix journeys (stand-in edited) | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/e2e/core/platforms/test_matrix_standin_smoke.py tests/e2e/core/platforms/test_matrix_project_routing.py tests/e2e/core/platforms/test_matrix_project_memory.py -v` |
-| C6 | Feature E2E (§6) | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/e2e/core/platforms/test_matrix_gallery_inbound.py -v` (must PASS, not skip) |
-| C7 | Lint / ratchets (ruff, code-health incl. FILE_LINES on `adapter.py`, BLE001, HX rules) | `python scripts/check` |
-| C8 | Broad regression before handoff | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/gateway/ tests/plugins/` |
+  This needs network only for wheels missing from the uv cache. If `olm` fails to import, or the
+  build fails (for example a native-library problem on NixOS), **report it as a blocker. Never
+  fall back to skipping.** Never pip/uv-mutate `.venv`; rebuild it fresh instead (stop its
+  processes, remove `.venv`, run the build again).
+- **Isolated state for every command below:** run `export
+  HERMES_HOME="$PWD/.hermes-sandbox/<run>/home"
+  HERMES_RUNTIME_DIR="$PWD/.hermes-sandbox/<run>/runtime"` with a fresh `<run>` per check.
+  `.hermes-sandbox/` is git-ignored. Never touch `~/.hermes`.
+- **Generated inputs:** nothing is checked in. PNG and JPEG byte literals live in the tests.
+  Ciphertext and keys come from `encrypt_attachment` at test time. Video bytes are arbitrary.
+- **Commands that write or rewrite files:**
+  - `pm.build_env` creates `.venv/`.
+  - The runner rewrites `test_durations.json`.
+  - `--basetemp` **wipes and recreates** its directory (create its parent first).
+  - `git archive` in C8 writes `.hermes-sandbox/base-tree/`.
+  - No check uses `--fix` or a formatter. `scripts/check` is read-only.
+- **Excluded by instruction:** all desktop E2E (core, visual regression, update,
+  installer/lifecycle). Real Synapse with an Element browser is not part of this feature's gate
+  (no live accounts).
+
+### 5.2 Required check inventory (all on the final HEAD)
+
+| # | Check | Command | Pass rule |
+|---|---|---|---|
+| C1 | Feature unit tests | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh --fail-on-skip tests/plugins/platforms/matrix/test_gallery_inbound.py tests/plugins/platforms/matrix/test_gallery_sender_compat.py tests/plugins/platforms/matrix/test_inbound_media_filename.py -v` | All pass, 0 skipped |
+| C2 | Matrix plugin suite | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/plugins/platforms/matrix/ -rs` | All pass. No skip reason mentions the matrix extra or mautrix/olm. |
+| C3 | Matrix adapter regressions | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/gateway/test_matrix*.py -rs` | Same as C2 |
+| C4 | Plugin contract | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/gateway/test_shared_platform_boilerplate.py` | All pass |
+| C5 | Stand-in honesty and existing Matrix journeys | `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh --fail-on-skip tests/e2e/core/platforms/test_matrix_standin_smoke.py tests/e2e/core/platforms/test_matrix_project_routing.py tests/e2e/core/platforms/test_matrix_project_memory.py -v` | All pass, 0 skipped |
+| C6 | Feature E2E (§6) | `mkdir -p "$PWD/.hermes-sandbox/e2e" && HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh --fail-on-skip tests/e2e/core/platforms/test_matrix_gallery_inbound.py -v --basetemp="$PWD/.hermes-sandbox/e2e/journey"` | Pass, 0 skipped. Evidence is kept under the basetemp directory. |
+| C7 | Lint and ratchets (ruff, code-health incl. `FILE_LINES`/BLE001/HX, agents-md, blob-size, guards) | `.venv/bin/python scripts/check --base db722732ad1e7002cd06fc3c813a109626466d59`; after a rebase: `--base main` | Exit 0 |
+| C8 | Broad regression versus base | HEAD: `HERMES_PYTHON="$PWD/.venv/bin/python" scripts/run_tests.sh tests/gateway/ tests/plugins/ -rs`. For each file that fails on HEAD and exists at base: `mkdir -p .hermes-sandbox/base-tree && git archive db722732ad \| tar -x -C .hermes-sandbox/base-tree` (once), then `(cd .hermes-sandbox/base-tree && HERMES_PYTHON="$PWD/../../.venv/bin/python" scripts/run_tests.sh <file>)` | No failure on HEAD that is absent at base. Any failure shared with base is listed with its test IDs as a **pre-existing blocker** in the receipt. A failure in a HEAD-only file is a feature failure. If the base tree cannot run a file, report that as a blocker; don't presume the failure is pre-existing. |
+| C9 | Type check (advisory, as in CI) | `.venv/bin/ty check plugins/platforms/matrix/adapter_gallery.py plugins/platforms/matrix/adapter_media.py plugins/platforms/matrix/adapter.py`, and the same `adapter.py` run in `.hermes-sandbox/base-tree` | No diagnostics in the new files. `adapter.py` count not above base. Advisory: report, don't block. |
+| C10 | Docs | `python3 website/scripts/check_doc_links.py` | Exit 0. The Docusaurus build is left to CI `docs-site-checks`; it is not run locally because the change is one plain paragraph with no links or MDX, and it would need `npm ci`. |
+
+Not applicable: coverage thresholds (none exist for Python), visual/screenshot checks (no UI
+change; desktop is excluded) and build artifacts (nothing new is packaged).
 
 ### 5.3 Isolated smoke and sender compatibility
 
-- **Smoke:** C1 inside the isolated `HERMES_HOME`/`HERMES_RUNTIME_DIR`, repeating the preflight
-  pattern.
-- **Sender compatibility:** the media-upload sender lives in a separate workspace, so there is no
-  cross-project edit or import. `test_gallery_inbound.py` carries a fixture that copies the
-  requested wire shape exactly (`dm.filament.gallery`, `body`, `format` + `formatted_body`,
-  `itemtypes[]` with `itemtype/body/filename/info{mimetype,size,w,h,duration,thumbnail_info,
-  thumbnail_url|thumbnail_file}`, `url` or `file{url,key{k},iv,hashes{sha256},v:"v2"}`,
-  `m.mentions`, `m.relates_to`) for 2 and 60 items, plain and encrypted. Thumbnails are ignored
-  inbound. If the sender workspace later publishes a captured event, adding it as one more
-  fixture row is a follow-up for that mission.
+- **S1 smoke:** C1 inside a fresh `.hermes-sandbox/smoke/{home,runtime}`. The receipt records the
+  `HERMES_PYTHON` path, `mautrix.__version__` and the pass/skip counts.
+- **Sender compatibility:** covered by C1 (`test_gallery_sender_compat.py`, §4.1 cases 1–7) and by
+  C6 steps 1 and 6.
+  - The fixtures are transcriptions with provenance, not imports. That keeps the boundary clean:
+    nothing in element-web is executed or written.
+  - If the sender mission later captures a real event, it can be added as one more fixture row,
+    as a follow-up.
 
-## 6. E2E journey
+## 6. E2E journey (`tests/e2e/core/platforms/test_matrix_gallery_inbound.py`)
 
-`tests/e2e/core/platforms/test_matrix_gallery_inbound.py`:
-- Markers: `platforms("linux")`, `spawns_gateway_lookalike`; `importorskip("mautrix", reason=
-  "requires the matrix extra")`.
-- Runs the real `hermes gateway run` child through `GatewayUnderTest` on pytest `tmp_path`, with
-  `MatrixDriver`'s stand-in and `FakeLLMServer` + `Director`.
-- Config merge: `agent.image_input_mode: native` (images arrive as recorded `image_url` data
-  URLs).
-- Env: driver defaults with `MATRIX_REQUIRE_MENTION=true`, so the room is a 3-member group and
-  gating is real.
-- `driver.arm_readiness()` is called before `gateway.start()`.
-- `finally` stops the gateway and the stand-in. No live accounts and no real provider.
+Setup:
+
+- Markers `platforms("linux")` and `spawns_gateway_lookalike`; `importorskip("mautrix",
+  reason="requires the matrix extra")`.
+- The real `hermes gateway run` runs through `GatewayUnderTest` on pytest's `tmp_path`, with the
+  `MatrixDriver` stand-in and `FakeLLMServer` + `Director`.
+- Config: `agent.image_input_mode: native`, `model.supports_vision: true`.
+- Env: driver defaults (`MATRIX_ALLOWED_USERS = admin,guest`) with `MATRIX_REQUIRE_MENTION=true`
+  in the 3-member group room `!alpha`.
+- Call `arm_readiness()` before `start()`.
+- `finally` stops the gateway and the stand-in.
+- There are no live accounts and no real provider.
+
+Item shape in all steps is Element's (F10): `body` is the name, there is no `filename`, and
+`info{mimetype,size}` is present.
 
 | Step | Action | Expected outcome |
 |---|---|---|
-| 1 | Seed `put_media`: PNG **A**, MP4 bytes **V**, `encrypt_attachment(PNG B)` → ciphertext **Bc**. Image **C** is left unseeded (404). Post a `dm.filament.gallery` with `body: "[in:gallery] compare these"`, `m.mentions.user_ids: [bot]`, and items A (`url`), V (`url`, `filename: clip.mp4`), B (`file`), C (`url`). | Exactly **one** model turn for `gallery` (`director.turns["gallery"] == 1`). The last user message has `image_url` parts `== [dataurl(A), dataurl(B)]` in that order. The text contains the caption, a video note naming `clip.mp4`, and `[Gallery: 1 of 4 items could not be loaded: item 4 …]`. `media_download` calls hit A, V, Bc, C in order. One bot reply lands in the room. |
-| 2 | Post an uncaptioned **`m.gallery`** (`body: ""`, `m.mentions` bot) with two images in a thread (`m.relates_to` `m.thread` on step 1's event). | One model turn (token `none`, scripted). Two image parts in order; the user text has no caption and no note. The reply carries `m.thread` → the step-1 event ID. |
-| 3 | Post an **unmentioned** gallery with fresh media IDs D, E and `[in:gated]`. Then post an `m.replace` edit of step 1 whose `m.new_content` is a gallery with `[in:edited]`. Then post a mentioned text barrier `[in:after] done?`. | The barrier reply arrives. `director.turns` has no `gated` or `edited` entries, and there are zero `media_download` calls for D/E. |
-| 4 | Post a mentioned gallery `[in:allfail]` whose 2 items are both unseeded. | One model turn whose user text is the caption + `[Gallery: none of the 2 items could be loaded: …]` with no `image_url` parts. One reply. |
-| 5 | Teardown checks. | No stand-in call faulted with `M_UNRECOGNIZED` (every route the adapter used exists). `driver.standin.bot_messages(driver.other_room_id) == []`. The gateway is stopped in `finally`. |
+| 1 | Seed plain PNG **A**, video bytes **V** (`body: clip.mp4`), and `encrypt_attachment(PNG B)` as ciphertext **Bc** (Element `file` shape). **C** is unseeded and returns 404. Post a `dm.filament.gallery` with `body: "[in:gallery] compare these"`, `m.mentions` naming the bot, and items A, V, B, C. | `director.turns["gallery"] == 1`. The last user message has `image_url` parts equal to `[data(A), data(B)]`, in that order. The text has the caption, a video note naming `clip.mp4`, and `[Gallery: 1 of 4 items could not be loaded: item 4 …`. `media_download` order is a, v, b, c. One bot reply. |
+| 2 | Uncaptioned **`m.gallery`** (`body: ""`, bot in `m.mentions`) with 2 images, in a thread on step 1's event, using Element's thread mixin (`is_falling_back`, `m.in_reply_to`). | One turn. Two images in order. No caption text and no note. The reply carries `m.thread` with the step 1 event ID. |
+| 3 | In order: (a) an **unmentioned** gallery with fresh media D, E; (b) an `m.replace` edit of step 1 whose `m.new_content` is a gallery; (c) **new:** a mentioned gallery from `@stranger:standin.local`, who is not in `MATRIX_ALLOWED_USERS`, with fresh media S1, S2 (join the stranger to `!alpha` with `add_member` if needed); (d) a mentioned text barrier `[in:after] done?`. | The barrier reply arrives. `director.turns` has no `gated`, `edited` or `stranger` entry. There are zero `media_download` calls for D and E. The room has no bot reply to the stranger. Per D9 the S1/S2 download count is **recorded, not asserted**. |
+| 4 | A mentioned gallery `[in:allfail]` with 2 unseeded items. | One turn. User text is the caption, a blank line, then `[Gallery: none of the 2 items could be loaded: …`. No `image_url` parts. One reply. |
+| 5 | **New, live shape (F1):** content with exactly `{msgtype: dm.filament.gallery, body: "[in:live] what images do you see?", itemtypes: [2 × plain m.image image/png], m.mentions: {user_ids: [bot]}}`. | One turn. Two `image_url` parts in item order. The text contains the caption and has no note. One reply. |
+| 6 | Teardown checks. | No call faulted with `M_UNRECOGNIZED`. `bot_messages(other_room_id) == []`. The gateway is stopped in `finally`. Evidence (gateway log, state DB, cached media) is kept under `--basetemp`. |
 
-Restart is not exercised: the feature adds no persisted state (galleries become ordinary events
-in the existing session machinery, already covered by the restart journeys in C5).
+Restart is not exercised: the feature adds no persisted state, and the existing restart journeys
+in C5 cover the session machinery.
 
-## 7. Risks and notes for implementers
+## 7. Risks and notes
 
-- **Sequential downloads** of up to 60 × 100 MB can make one turn slow. That is accepted, since
-  ordering is required and it matches single-media cost per item. A concurrency cap would be a
-  follow-up if needed.
-- **D2 STT side effect** (audio inside an image/video gallery) is core routing (F7). It is
-  documented, not changed here.
-- Keep `_download_and_cache_media`'s signature and its existing WARNINGs unchanged:
-  `tests/gateway/test_matrix_media_gate_before_download.py` and others patch it as an instance
-  attribute.
-- Commit on `feat/matrix-gallery-inbound` only; rebase onto `main` before any later merge (root
-  rule), which is outside this mission's branch-only delivery.
+- **Sequential download** of up to 60 × the media cap can make one turn slow. This is accepted
+  because order is required. A concurrency cap is a possible follow-up.
+- **D9 amplification** (F5) is an accepted risk. A pre-download `_is_authorized_source` check is
+  the possible follow-up.
+- **D2:** audio inside an image or video gallery is transcribed (core routing).
+- **Environment risk:** the `matrix` extra needs `python-olm`. A failed build or import blocks
+  C1–C6. That is reported, never skipped.
+- The integration with `matrix-command-descriptions` is described in §4.2.
