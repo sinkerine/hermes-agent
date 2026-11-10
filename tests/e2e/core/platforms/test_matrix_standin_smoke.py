@@ -209,3 +209,74 @@ def test_matrix_standin_authenticated_media_and_arbitrary_content() -> None:
         received = sync["rooms"]["join"][room]["timeline"]["events"]
         assert received[0]["event_id"] == event_id
         assert received[0]["content"]["body"] == "caption"
+
+
+def test_matrix_standin_state_routes_power_faults_and_sync() -> None:
+    """State PUTs preserve decoded keys, replace current state and reach incremental sync."""
+    from urllib.parse import quote
+
+    room_id = "!state:standin.local"
+    event_type = "org.matrix.msc4391.command_description"
+    key = "/+digest="
+    with MatrixStandin() as server, requests.Session() as client:
+        server.add_room(room_id, "State", [BOT_USER_ID, "@admin:standin.local"])
+        client.headers["Authorization"] = f"Bearer {server.token}"
+        base = server.base_url + "/_matrix/client/v3"
+        url = base + f"/rooms/{quote(room_id, safe='')}/state/{event_type}/{quote(key, safe='')}"
+        state_url = base + f"/rooms/{room_id}/state"
+        assert client.get(state_url, timeout=5).json() == server._rooms[room_id]["state"]
+        cursor = client.get(base + "/sync", timeout=5).json()["next_batch"]
+        content = {"command": "status", "parameters": []}
+        response = client.put(url, json=content, timeout=5)
+        assert response.status_code == 200
+        event_id = response.json()["event_id"]
+        events = server.state_events(room_id, event_type)
+        assert len(events) == 1
+        assert events[0]["state_key"] == key
+        assert events[0]["sender"] == BOT_USER_ID
+        delta = client.get(base + "/sync", params={"since": cursor}, timeout=5).json()
+        assert events[0] in delta["rooms"]["join"][room_id]["timeline"]["events"]
+        assert events[0]["event_id"] == event_id
+        assert client.put(url, json={}, timeout=5).status_code == 200
+        assert [e["content"] for e in server.state_events(room_id, event_type)] == [{}]
+        server.set_power_levels(room_id, {BOT_USER_ID: 0})
+        assert client.put(url, json=content, timeout=5).status_code == 403
+        assert server.state_events(room_id, event_type)[0]["content"] == {}
+        server.set_power_levels(room_id, {BOT_USER_ID: 50})
+        fault = server.fail("put_state", {"errcode": "M_LIMIT_EXCEEDED", "error": "slow",
+                                          "retry_after_ms": 1}, status=429)
+        assert client.put(url, json=content, timeout=5).status_code == 429
+        assert fault.fired == 1
+        assert client.put(url, json=content, timeout=5).status_code == 200
+        assert server.state_events(room_id, event_type)[0]["content"] == content
+        sent = {"msgtype": "m.text", "body": "/status", "m.mentions": {"user_ids": [BOT_USER_ID]}}
+        cursor = client.get(base + "/sync", timeout=5).json()["next_batch"]
+        server.post_content(room_id, "@admin:standin.local", sent)
+        delta = client.get(base + "/sync", params={"since": cursor}, timeout=5).json()
+        assert delta["rooms"]["join"][room_id]["timeline"]["events"][0]["content"] == sent
+        assert client.get(state_url, headers={"Authorization": "Bearer invalid"}, timeout=5).status_code == 401
+        assert client.get(base + "/rooms/!missing/state", timeout=5).status_code == 404
+
+
+@pytest.mark.parametrize(("levels", "status"), [
+    ({}, 403),
+    ({"users_default": 50}, 200),
+    ({"state_default": 0}, 200),
+    ({"state_default": 0, "events": {"test.state": 100}}, 403),
+    ({"users": {BOT_USER_ID: "100"}, "events": {"test.state": "100"}}, 200),
+])
+def test_matrix_standin_state_power_level_defaults_and_overrides(levels, status) -> None:
+    room_id = "!power:standin.local"
+    with MatrixStandin() as server, requests.Session() as client:
+        server.add_room(room_id, "Power", [BOT_USER_ID])
+        client.headers["Authorization"] = f"Bearer {server.token}"
+        base = server.base_url + f"/_matrix/client/v3/rooms/{room_id}/state"
+        server.set_power_levels(room_id, {BOT_USER_ID: 100})
+        assert client.put(base + "/m.room.power_levels/", json=levels, timeout=5).status_code == 200
+        response = client.put(base + "/test.state/key", json={"value": 1}, timeout=5)
+        assert response.status_code == status
+        if status == 403:
+            assert response.json()["errcode"] == "M_FORBIDDEN"
+            assert server.state_events(room_id, "test.state") == []
+        else:
+            assert server.state_events(room_id, "test.state")[0]["content"] == {"value": 1}

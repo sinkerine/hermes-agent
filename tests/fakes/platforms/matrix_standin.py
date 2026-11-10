@@ -109,6 +109,28 @@ class MatrixStandin(StandinServer):
             self._media[media_id] = data
         return f"mxc://standin.local/{media_id}"
 
+    def state_events(self, room_id: str, event_type: str) -> list[dict[str, Any]]:
+        with self._lock:
+            return copy.deepcopy([event for event in self._rooms[room_id]["state"]
+                                  if event["type"] == event_type])
+
+    def _replace_state(self, room_id: str, sender: str, event_type: str, state_key: str,
+                       content: dict[str, Any]) -> str:
+        with self._lock:
+            room = self._rooms[room_id]
+            event = self._event(room_id, sender, event_type, content, state_key=state_key)
+            room["state"] = [old for old in room["state"]
+                             if (old["type"], old["state_key"]) != (event_type, state_key)]
+            room["state"].append(event)
+            room["timeline"].append((self._seq, event))
+            room["revision"] = self._seq
+        self._wake()
+        return event["event_id"]
+
+    def set_power_levels(self, room_id: str, users: dict[str, int], state_default: int = 50) -> str:
+        return self._replace_state(room_id, self.bot_user_id, "m.room.power_levels", "",
+                                   {"users": users, "state_default": state_default})
+
     def bot_messages(self, room_id: str, *, thread_root: str | None = None) -> list[dict[str, Any]]:
         """Return visible events with final content, preserving the original thread relation."""
         visible: dict[str, dict[str, Any]] = {}
@@ -146,6 +168,8 @@ class MatrixStandin(StandinServer):
             ("POST", "/v3/user/{user_id}/filter", "filter"),
             ("GET", "/v3/sync", "sync"),
             ("PUT", "/v3/rooms/{room_id}/send/{event_type}/{txn}", "send"),
+            ("GET", "/v3/rooms/{room_id}/state", "room_state"),
+            ("PUT", "/v3/rooms/{room_id}/state/{event_type}/{state_key:.*}", "put_state"),
             ("GET", "/v3/rooms/{room_id}/state/{event_type}", "state"),
             ("GET", "/v3/rooms/{room_id}/state/{event_type}/{state_key:.*}", "state"),
             ("GET", "/v3/rooms/{room_id}/joined_members", "joined_members"),
@@ -253,6 +277,29 @@ class MatrixStandin(StandinServer):
                 self._transactions[key] = self._append(params["room_id"], self.bot_user_id,
                                                         params["event_type"], params["content"])
             return {"event_id": self._transactions[key]}
+
+    async def _api_room_state(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        with self._lock:
+            return copy.deepcopy(self._room(params)["state"])
+
+    async def _api_put_state(self, params: dict[str, Any]) -> dict[str, Any]:
+        with self._lock:
+            state = self._room(params)["state"]
+            levels = next((event["content"] for event in state
+                           if event["type"] == "m.room.power_levels"), None)
+            create = next((event for event in state if event["type"] == "m.room.create"), {})
+            creation = create.get("content", {})
+            creator = creation.get("room_version") == "12" and self.bot_user_id in (
+                create.get("sender"), *creation.get("additional_creators", []))
+            if levels is not None and not creator:
+                required = levels.get("events", {}).get(params["event_type"],
+                                                        levels.get("state_default", 50))
+                have = levels.get("users", {}).get(self.bot_user_id, levels.get("users_default", 0))
+                if int(have) < int(required):
+                    raise _MatrixError("M_FORBIDDEN", "Insufficient power level", 403)
+            event_id = self._replace_state(params["room_id"], self.bot_user_id,
+                                           params["event_type"], params["state_key"], params["content"])
+            return {"event_id": event_id}
 
     async def _api_state(self, params: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
