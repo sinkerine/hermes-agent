@@ -574,6 +574,59 @@ Hermes only normalizes `!command` when the command is known to the gateway, a
 registered plugin command, or an installed skill command. Ordinary exclamations
 such as `!important` remain normal chat messages.
 
+### Command descriptions (Element autocomplete)
+
+Hermes publishes MSC4391 command descriptions by default. In Element builds that
+support MSC4391, typing `/` shows gateway commands, registered plugin commands,
+and skills enabled for Matrix. Core commands take precedence over plugin commands
+and skills; the menu contains at most 500 commands per bot. Invalid command names
+are omitted rather than shortened, so every advertised name remains dispatchable.
+
+Commands appear in joined rooms where Hermes is allowed to respond: all rooms
+when `matrix.allowed_rooms` is empty, or listed rooms plus DMs when it is set.
+Descriptions are visible to everyone in the room. Executing a command still uses
+the existing sender allowlist and permission checks.
+
+Element qualifies a command when its name collides with an enabled client command
+or another bot. For a bot named `@hermes:example.org`, select `/status@hermes` when
+Element's Labs **user status** feature enables its own `/status`. Element sends
+Hermes the canonical `/status` body with a bot mention, and Hermes returns gateway
+status without starting a model turn. If bot localparts collide, Element uses the
+full Matrix ID without its leading `@` as the qualifier.
+
+The bot needs permission to send the state event type
+`org.matrix.msc4391.command_description`. In rooms with power levels, its required
+level is the explicit event override, then `state_default`, then 50; without a
+power-level event it is 0. Room version 12 creators can always publish. Hermes
+logs missing power once per room and retries when power levels change.
+
+Descriptions reconcile after initial sync (including reconnects), new room joins,
+power-level changes, and `/reload-skills`. A reload adds new skill descriptions
+and blanks removed ones. Hermes only writes changed events, and clears its old
+descriptions in rooms that become ineligible when it still has power there.
+There is no skill-directory polling or `/reload-mcp` trigger: MCP adds tools,
+not slash commands. A shared bot serving satellite profiles advertises the bot
+owner profile's commands, as other gateway command menus do.
+
+To disable publication and clear existing descriptions on the next connection's
+reconcile, set this in `config.yaml` and restart the gateway:
+
+```yaml
+matrix:
+  command_descriptions: false
+```
+
+`platforms.matrix.extra.command_descriptions` also works. The YAML bridge's env
+twin is `MATRIX_COMMAND_DESCRIPTIONS`; the default is `true`.
+
+Publication runs in the background, with at least 0.2 seconds between writes for
+all rooms combined. Synapse's default `rc_message` rate of 0.2 events/second can
+make an initial menu of roughly 150 commands take about 12 minutes per room.
+Homeserver administrators should configure a bot-specific ratelimit override
+(for example through Synapse's admin user ratelimit API) before publishing large
+menus. Rate-limit responses use bounded exponential backoff; another reconcile
+trigger retries a room whose pass was interrupted.
+
 ## Troubleshooting
 
 ### Bot is not responding to messages

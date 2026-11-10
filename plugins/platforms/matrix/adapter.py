@@ -79,6 +79,8 @@ from gateway.platforms.base import transcode_to_ogg_opus
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 from gateway.platforms.helpers import ThreadParticipationTracker
 from plugins.platforms.matrix import adapter_gallery, adapter_html, adapter_media, event_dedup
+from plugins.platforms.matrix.adapter_commands import _normalize_matrix_bang_command
+from plugins.platforms.matrix.command_publisher import MatrixCommandDescriptionsMixin
 from plugins.platforms.matrix.voice_mention import ParkedVoices, VoiceGate, has_voice_marker, is_voice_event
 
 logger = logging.getLogger(__name__)
@@ -127,46 +129,6 @@ def _matrix_voice_metadata_for_file(path: Path) -> dict[str, Any]:
         except Exception:
             logger.debug("Matrix: failed to build voice waveform for %s", path, exc_info=True)
     return metadata
-
-_MATRIX_BANG_COMMAND_RE = re.compile(r"^!([A-Za-z][A-Za-z0-9_-]*)(?=$|\s)(.*)$", re.DOTALL)
-
-
-def _resolve_matrix_bang_command(name: str) -> str | None:
-    """Resolve a ``!command`` token (Matrix clients reserve ``/``) to a dispatchable token.
-    Only known gateway/skill commands resolve, so ordinary exclamations stay chat text. Returns
-    whichever candidate resolved — raw lowercased first, then ``_``→``-`` — never a forced
-    canonical form: aliases pass through for the dispatcher."""
-    if not name:
-        return None
-    candidates = list(dict.fromkeys((name.lower(), name.lower().replace("_", "-"))))
-    try:
-        from hermes_cli.commands import is_gateway_known_command
-        for candidate in candidates:
-            if is_gateway_known_command(candidate):
-                return candidate
-    except Exception:
-        logger.debug("Matrix: is_gateway_known_command failed for %r", name, exc_info=True)
-    try:
-        from agent.skill_commands import get_skill_commands
-        skill_commands = get_skill_commands() or {}  # keys are slash-prefixed ("/arxiv")
-        for candidate in candidates:
-            if f"/{candidate}" in skill_commands:
-                return candidate
-    except Exception:
-        logger.debug("Matrix: get_skill_commands failed for %r", name, exc_info=True)
-    return None
-
-
-def _normalize_matrix_bang_command(text: str) -> str:
-    """Convert Matrix ``!command`` aliases to normal Hermes ``/command`` text."""
-    if not text or not text.startswith("!"):
-        return text
-    match = _MATRIX_BANG_COMMAND_RE.match(text)
-    resolved = _resolve_matrix_bang_command(match.group(1)) if match else None
-    if resolved is None:
-        return text
-    return f"/{resolved}{match.group(2) or ''}"
-
 
 # Reply fallback prefix: "> <@alice:example.org> quoted\n> more\n\nactual reply".
 _MATRIX_REPLY_FALLBACK_PILL_RE = re.compile(r"^>\s*<(@[^>]+)>\s*(.*)$")
@@ -652,7 +614,7 @@ def ensure_matrix_deps() -> bool:
     return True
 
 
-class MatrixAdapter(BasePlatformAdapter):
+class MatrixAdapter(MatrixCommandDescriptionsMixin, BasePlatformAdapter):
     """Gateway adapter for Matrix (any homeserver)."""
     serial_receive_loop = True  # _sync_loop reads the next sync only after this sync's handlers return
     supports_code_blocks = True  # Matrix renders fenced code blocks (HTML/markdown)
@@ -1208,11 +1170,13 @@ class MatrixAdapter(BasePlatformAdapter):
                 logger.warning("Matrix: initial key share failed: %s", exc)
         self._sync_task = asyncio.create_task(self._sync_loop())
         self._mark_connected()
+        self._start_command_descriptions()
         self._wire_plugin_handlers(self._client)  # plugin-registered native handlers
         return True
 
     async def disconnect(self) -> None:
         self._closing = True
+        await self._stop_command_descriptions()
         from tools import secret_gateway
         secret_gateway.cancel_for_home(self._capture_home, "adapter_shutdown")
         if self._sync_task and not self._sync_task.done():
@@ -1760,6 +1724,7 @@ class MatrixAdapter(BasePlatformAdapter):
         if rooms_join or initial:
             self._joined_rooms.update(rooms_join.keys())
             self._invalidate_room_identities()
+        self._observe_command_description_sync(sync_data)
         self._warn_encrypted_drops(rooms_join, client)
         nb = sync_data.get("next_batch")  # incremental syncs resume from here
         if nb:
@@ -3000,6 +2965,7 @@ _YAML_BRIDGE = (  # (yaml key, env var, kind) for apply_yaml_bridge
     ("require_mention", "MATRIX_REQUIRE_MENTION", "lower"), ("process_notices", "MATRIX_PROCESS_NOTICES", "lower"),
     ("session_scope", "MATRIX_SESSION_SCOPE", "lower"), ("auto_thread", "MATRIX_AUTO_THREAD", "lower"),
     ("dm_mention_threads", "MATRIX_DM_MENTION_THREADS", "lower"),
+    ("command_descriptions", "MATRIX_COMMAND_DESCRIPTIONS", "lower"),
     ("allowed_users", "MATRIX_ALLOWED_USERS", "csv"), ("free_response_rooms", "MATRIX_FREE_RESPONSE_ROOMS", "csv"),
     ("allowed_rooms", "MATRIX_ALLOWED_ROOMS", "csv"), ("ignore_user_patterns", "MATRIX_IGNORE_USER_PATTERNS", "csv"),
     ("max_message_length", "MATRIX_MAX_MESSAGE_LENGTH", "str"),

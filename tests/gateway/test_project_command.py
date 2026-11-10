@@ -327,7 +327,7 @@ def test_registry_idle_handler_and_matrix_bang():
     from gateway.run_busy import GatewayBusySessionMixin
     from gateway.slash_commands import GatewaySlashCommandsMixin
     from hermes_cli.commands import resolve_command, is_gateway_known_command
-    from plugins.platforms.matrix.adapter import _normalize_matrix_bang_command
+    from plugins.platforms.matrix.adapter_commands import _normalize_matrix_bang_command
     assert resolve_command("project").gateway_only
     assert is_gateway_known_command("project")
     assert "project" in GatewayBusySessionMixin._IDLE_COMMANDS

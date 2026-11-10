@@ -120,5 +120,5 @@ async def test_offline_attach_invalid_config_dangling_and_usage(room):
 
 
 def test_matrix_bang_mapping():
-    from plugins.platforms.matrix.adapter import _normalize_matrix_bang_command
+    from plugins.platforms.matrix.adapter_commands import _normalize_matrix_bang_command
     assert _normalize_matrix_bang_command("!project memory add kb") == "/project memory add kb"

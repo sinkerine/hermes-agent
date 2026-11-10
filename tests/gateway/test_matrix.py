@@ -463,7 +463,7 @@ class TestMatrixBangCommandAlias:
         return captured_event
 
     def test_known_bang_command_normalizes_to_slash_command(self):
-        from plugins.platforms.matrix.adapter import _normalize_matrix_bang_command
+        from plugins.platforms.matrix.adapter_commands import _normalize_matrix_bang_command
 
         assert _normalize_matrix_bang_command("!model") == "/model"
         assert (
@@ -497,7 +497,7 @@ class TestMatrixBangCommandAlias:
         with patch.object(
             skill_commands_mod, "get_skill_commands", return_value=fake_skills
         ):
-            from plugins.platforms.matrix.adapter import _normalize_matrix_bang_command
+            from plugins.platforms.matrix.adapter_commands import _normalize_matrix_bang_command
 
             # is_gateway_known_command won't know these; the skill branch must.
             assert _normalize_matrix_bang_command("!arxiv") == "/arxiv"
