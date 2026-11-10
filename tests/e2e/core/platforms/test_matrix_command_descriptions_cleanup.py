@@ -6,11 +6,11 @@ import pytest
 import hermes_yaml as yaml
 from tests.e2e.core.platforms.test_matrix_command_descriptions import (
     ALPHA, BETA, DM, EVENT_TYPE, ROOMS, add_probe, await_descriptions,
-    command_gateway,
     descriptions, manifest_for, puts, start,
 )
 from tests.waiting import wait_until
 
+pytest_plugins = ["tests.e2e.core.platforms.test_matrix_command_descriptions"]
 pytestmark = [pytest.mark.platforms("linux"), pytest.mark.spawns_gateway_lookalike]
 
 

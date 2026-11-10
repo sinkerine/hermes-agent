@@ -146,7 +146,7 @@ def test_matrix_command_descriptions_publication_execution_reload_and_power(comm
     assert llm.requests == []
     before = driver.standin.bot_messages(ALPHA)
     driver.standin.post_content(ALPHA, INTRUDER, content)
-    # A bounded observation window is the access contract, not a publication delay.
+    # health: allow HX013 -- A10 requires observing no unauthorized reply for 10s; absence has no event
     assert not threading.Event().wait(10)
     assert driver.standin.bot_messages(ALPHA) == before
     assert llm.requests == []
