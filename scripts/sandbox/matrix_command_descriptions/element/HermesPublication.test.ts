@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /* Runs only in the sandbox archive of pinned Element, against real Synapse dumps. */
 import { MatrixEvent, KnownMembership, type MatrixClient, type Room } from "matrix-js-sdk/src/matrix";
 import { afterEach, describe, expect, it, vi } from "vitest";

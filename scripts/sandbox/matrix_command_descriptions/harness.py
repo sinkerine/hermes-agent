@@ -88,7 +88,7 @@ def conformance():
         label: read_json(SB / 'evidence' / (label + '.json')) for label in labels})
     with (SB / 'evidence/conformance.log').open('ab') as output:
         run(['pnpm', '--config.verifyDepsBeforeRun=false', 'exec', 'vitest', 'run',
-             '--project', 'unit', 'apps/web/src/slash-commands/bot-commands/HermesPublication.test.ts'],
+             'apps/web/src/slash-commands/bot-commands/HermesPublication.test.ts'],
             cwd=source, stdout=output, stderr=output, timeout=180)
     verify_element()
     print('Actual published dumps passed pinned Element parser/resolver/content assertions.')
