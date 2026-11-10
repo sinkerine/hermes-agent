@@ -2244,7 +2244,7 @@ DEFAULT_CONFIG = {
         "transport": "auto",
         # Minimum seconds between progressive edits (Telegram's ~1 edit/s flood envelope).
         "edit_interval": 0.8,
-        # Flush the buffer once this many chars accumulate, so short replies feel instant.
+        # New chars per interim update (also waits edit_interval); completion flushes any tail.
         "buffer_threshold": 24,
         "cursor": " \u2589",  # Cursor glyph appended to the in-progress message.
         # Telegram only: when >0, if the preview was visible at least this many seconds the final

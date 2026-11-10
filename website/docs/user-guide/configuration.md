@@ -2657,19 +2657,23 @@ display:
 
 When enabled, responses appear token-by-token inside a streaming box. Tool calls are still captured silently. If the provider doesn't support streaming, it falls back to the normal display automatically.
 
-### Gateway Streaming (Telegram, Discord, Slack)
+### Gateway Streaming (Telegram, Discord, Slack, Matrix)
 
 ```yaml
 streaming:
   enabled: true           # Enable progressive message editing (default: false)
   transport: auto         # "auto" (default) | "edit" (progressive message editing) | "off"
-  edit_interval: 0.8      # Seconds between message edits (default: 0.8)
-  buffer_threshold: 24    # Characters before forcing an edit flush (default: 24)
+  edit_interval: 0.8      # Minimum seconds between interim updates (default: 0.8)
+  buffer_threshold: 24    # New characters required per interim update (default: 24)
   cursor: " ▉"            # Cursor shown during streaming
   fresh_final_after_seconds: 0    # Opt in to fresh final (Telegram) when preview is this old
 ```
 
-When enabled, the bot sends a message on the first token, then progressively edits it as more tokens arrive. Platforms that don't support message editing (Signal, Email, Home Assistant) are auto-detected on the first attempt — streaming is gracefully disabled for that session with no flood of messages.
+For progressive message editing, each interim update requires **both** `edit_interval` seconds since the previous update and `buffer_threshold` new characters. Previously delivered text does not count toward the next buffer. Increasing the threshold produces larger, less frequent batches; increasing the interval caps the update frequency even when tokens arrive quickly. Turn completion and tool boundaries flush remaining text without waiting for either threshold, so short answers are still delivered. Native streaming transports keep their own delivery behavior.
+
+For a quieter Matrix stream, try `edit_interval: 1.0` and `buffer_threshold: 64`. These settings live in each profile's `config.yaml`; restart the gateway after changing them. See [Matrix streaming and homeserver limits](messaging/matrix.md#streaming-and-homeserver-limits) for Synapse configuration.
+
+Platforms that don't support message editing (Signal, Email, Home Assistant) are auto-detected on the first attempt — streaming is gracefully disabled for that session with no flood of messages.
 
 For separate natural mid-turn assistant updates without progressive token editing, set `display.interim_assistant_messages: true`.
 

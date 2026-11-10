@@ -244,11 +244,10 @@ class TestGotDoneOverflowSplitNotRefinalized:
             success=True, message_id="initial_preview",
         ))
         consumer = self._consumer(adapter)
+        await consumer._send_or_edit("initial preview")
         consumer.on_delta("short final reply")
-        task = asyncio.create_task(consumer.run())
-        await asyncio.sleep(0.05)
         consumer.finish()
-        await task
+        await consumer.run()
 
         finalize_edits = [
             c for c in adapter.edit_message.call_args_list

@@ -200,6 +200,7 @@ class GatewayStreamConsumer(StreamTransportMixin, StreamFallbackMixin, StreamThi
         # ``_stream_ledger`` mirrors ``_accumulated`` but is NOT truncated when
         # overflow splits seal head chunks (reconcilable turn-final payload).
         self._accumulated = self._stream_ledger = ""
+        self._buffered_chars = 0
         self._last_sent_text = ""    # skip redundant edits
         self._fallback_final_send = False
         self._fallback_prefix = ""
@@ -297,6 +298,7 @@ class GatewayStreamConsumer(StreamTransportMixin, StreamFallbackMixin, StreamThi
             self._tool_progress_active = False
         self._accumulated += text
         self._stream_ledger += text
+        self._buffered_chars += len(text)
 
     def _mark_skip_redundant_finalize(self) -> None:
         """Mark the turn final as delivered by a prior mid-stream edit.  Records what was
@@ -781,13 +783,12 @@ class GatewayStreamConsumer(StreamTransportMixin, StreamFallbackMixin, StreamThi
             should_edit = bool(self._accumulated) or self._tool_progress_active
         else:
             elapsed = time.monotonic() - self._last_edit_time
-            # buffer_threshold is a codepoint debounce heuristic, not a
-            # platform-limit check (_len_fn is for overflow).  It must not
-            # override an active flood backoff: while a refusal is being
-            # waited out, only the (server-requested) interval may fire an edit.
-            should_edit = bool((elapsed >= self._current_edit_interval and self._accumulated)
-                               or (len(self._accumulated) >= self.cfg.buffer_threshold
-                                   and not self._flood_strikes))
+            # Both gates apply: a large reply must never bypass pacing, and
+            # previously delivered text must not count toward the next batch.
+            should_edit = bool(elapsed >= self._current_edit_interval
+                               and self._accumulated
+                               and (self._buffered_chars >= self.cfg.buffer_threshold
+                                    or self._tool_progress_active))
         # Defer mid-stream edits while the buffer could still resolve to a silence
         # marker ("NO"→"NO_REPLY"), or a reply's last line could still become a trailing one
         # ("answer\n\nNO"); got_done always resolves the buffer.
@@ -824,6 +825,7 @@ class GatewayStreamConsumer(StreamTransportMixin, StreamFallbackMixin, StreamThi
             tail = chunks[-1]
             indicator = f" ({len(chunks)}/{len(chunks)})"
             self._accumulated = tail.removesuffix(indicator)
+            self._buffered_chars = min(self._buffered_chars, len(self._accumulated))
             # Flag BEFORE the tail send: fresh-final replaces every tracked preview
             # with one message, which is only valid while the active message holds
             # the whole answer — deleting sealed heads drops delivered text.
@@ -869,6 +871,7 @@ class GatewayStreamConsumer(StreamTransportMixin, StreamFallbackMixin, StreamThi
             if self._fallback_final_send or not ok:
                 break  # keep the full text intact for the fallback final send
             self._accumulated = self._accumulated[split_at:].lstrip("\n")
+            self._buffered_chars = min(self._buffered_chars, len(self._accumulated))
             self._message_id = None
             self._last_sent_text = ""
             self._turn_split_delivery = True
@@ -895,6 +898,8 @@ class GatewayStreamConsumer(StreamTransportMixin, StreamFallbackMixin, StreamThi
             display_text, finalize=tick.got_done or tick.got_segment_break,
             is_turn_final=tick.got_done)
         self._last_edit_time = time.monotonic()
+        if tick.update_visible:
+            self._buffered_chars = 0
         # Lines stay in _tool_progress_lines for the next compose.
         self._tool_progress_active = False
 

@@ -34,6 +34,29 @@ Before setup, here's the part most people want to know: how Hermes behaves once 
 The bot automatically joins rooms when invited. Just invite the bot's Matrix user to any room and it will join and start responding.
 :::
 
+## Streaming and Homeserver Limits
+
+Matrix streaming uses ordinary message edits, which share the bot account's homeserver event rate limit with messages, reactions, and other events. Configure Hermes in each profile's `config.yaml`:
+
+```yaml
+streaming:
+  enabled: true
+  edit_interval: 1.0       # At most one interim update per second
+  buffer_threshold: 64    # At least 64 new characters per interim update
+```
+
+Both thresholds must be met; completion always flushes the remaining text. Restart the Hermes gateway after changing these settings.
+
+Synapse defaults to 0.2 events per second with a burst of 10, which is too low for sustained edit streaming. For a private homeserver, a starting point in Synapse's `homeserver.yaml` is:
+
+```yaml
+rc_message:
+  per_second: 2.0
+  burst_count: 20
+```
+
+Restart Synapse to apply the change. This limit is per user and applies across that user's rooms; concurrent conversations using the same bot account share it. The extra headroom allows reactions, tool notices, and final updates alongside a one-per-second stream. On a shared public server, use a per-user rate override for trusted bots or increase the Hermes edit interval to fit the server's policy.
+
 ## Capability Matrix
 
 This table is backed by the Matrix adapter capability declaration and Matrix test
