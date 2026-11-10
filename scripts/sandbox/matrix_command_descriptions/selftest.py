@@ -22,6 +22,24 @@ def rejects(fn):
     raise AssertionError('Invalid operation was accepted')
 
 
+def check_synapse_config():
+    original = {'server_name': 'localhost', 'registration_shared_secret': 'retained-secret',
+                'signing_key_path': '/data/retained.signing.key',
+                'database': {'name': 'sqlite3', 'args': {'database': '/data/homeserver.db'}}}
+    configured = synapse_config(original)
+    assert configured['registration_shared_secret'] == original['registration_shared_secret']
+    assert configured['signing_key_path'] == original['signing_key_path']
+    assert configured['database'] == original['database']
+    assert 'rc_message' not in original
+    assert configured['rc_message'] == {'per_second': 4, 'burst_count': 5}
+    assert configured['include_profile_updates_in_sync'] is True
+    assert synapse_config(yaml.safe_load(yaml.safe_dump(configured))) == configured
+    fresh = synapse_config({'server_name': 'localhost', 'registration_shared_secret': ''})
+    assert fresh['registration_shared_secret']
+    assert fresh['signing_key_path'] == '/data/localhost.signing.key'
+    assert synapse_config(fresh) == fresh
+
+
 def selftest():
     raw = b'exact dependency archive fixture'
     integrity = 'sha512-' + base64.b64encode(hashlib.sha512(raw).digest()).decode()
@@ -45,8 +63,9 @@ def selftest():
     assert gateway_config('!ops:localhost', True)['matrix']['command_descriptions'] is False
     assert config['model']['base_url'] == 'http://127.0.0.1:18182/v1'
     assert element_config()['features']['feature_user_status'] is True
+    check_synapse_config()
     synapse = synapse_config({'server_name': 'localhost'})
-    assert synapse['rc_message'] == {'per_second': 4, 'burst_count': 30}
+    assert synapse['rc_message'] == {'per_second': 4, 'burst_count': 5}
     assert synapse['listeners'][0]['resources'][0]['names'] == ['client']
     assert synapse['enable_registration'] is False
     key = state_key('status')
@@ -87,4 +106,4 @@ def selftest():
         first = digest_tree(unowned)
         private_write(unowned / 'existing', 'changed')
         assert digest_tree(unowned) != first
-    print('selftest: PASS — configs, state keys, dump assertions, unowned-state refusal, receipt identity, private I/O, redaction, artifact digest, pinned dependency integrity')
+    print('selftest: PASS — configs, state keys, dump assertions, unowned-state refusal, receipt identity, private I/O, redaction, artifact digest, pinned dependency integrity, retained Synapse config/secret')

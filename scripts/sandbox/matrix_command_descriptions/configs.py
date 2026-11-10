@@ -11,9 +11,11 @@ import hermes_yaml as yaml
 
 def synapse_config(config):
     return {**config, 'enable_registration': False, 'report_stats': False,
-            'registration_shared_secret': secrets.token_hex(32), 'public_baseurl': HS + '/',
-            'signing_key_path': '/data/localhost.signing.key',
-            'rc_message': {'per_second': 4, 'burst_count': 30},
+            'registration_shared_secret': config.get('registration_shared_secret') or secrets.token_hex(32),
+            'public_baseurl': HS + '/',
+            'signing_key_path': config.get('signing_key_path') or '/data/localhost.signing.key',
+            'include_profile_updates_in_sync': True,
+            'rc_message': {'per_second': 4, 'burst_count': 5},
             'listeners': [{'port': 8008, 'tls': False, 'type': 'http', 'x_forwarded': True,
                            'resources': [{'names': ['client'], 'compress': False}]}]}
 

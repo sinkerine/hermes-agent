@@ -84,12 +84,26 @@ requires lock, package and workspace inputs to match the pinned Element commit;
 it refuses a completed trusted build. It neither changes lockfiles nor modifies
 the original Element checkout. `up` creates ops (allowlisted, bot power 0) and elsewhere
 (not allowlisted, bot power 100), joins all accounts, then starts the gateway.
+Both fresh and retained owned Synapse configs set
+`include_profile_updates_in_sync: true`. Pinned Synapse uses that real setting to
+advertise `org.matrix.msc4429` in `/versions`, which Element requires for its own
+user-status command. The Element Labs toggle alone does not enable the built-in
+without this server support. This makes the `/status` collision real without
+client overrides or capability spoofing. Startup reapplies these settings before
+the container starts, preserving any nonempty registration secret, configured
+signing-key path, database and unrelated settings. Accounts, signing keys and
+crypto data are retained.
+
 Alice logs into real Element and creates an encrypted direct room through its
 real Matrix client. `01-dm.png` and `rooms.json` record that room.
 
 Wait for the DM gateway INFO summary with at least 100 published and zero cleared
-(`evidence/gateway.log`). With Synapse `rc_message: {per_second: 4, burst_count: 30}`,
-confirm at least one real M_LIMIT_EXCEEDED retry under the publisher's 5/s pacing.
+(`$SB/home/logs/gateway.log`, the runtime INFO log; `evidence/gateway.log`
+captures process console output). With Synapse
+`rc_message: {per_second: 4, burst_count: 5}`, confirm at least one real
+M_LIMIT_EXCEEDED retry under the publisher's 5/s pacing. Burst 30 absorbed the
+109-command publication without a 429; burst 5 exercises actual server rate
+limiting. No synthetic faults or retry log entries count as this evidence.
 Save that observation in the journey report; a lack of retry evidence is a failed
 acceptance condition. Then:
 

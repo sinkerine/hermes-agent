@@ -121,8 +121,8 @@ def synapse():
         with (SB / 'evidence/synapse-generate.log').open('ab') as output:
             run([*args, '-e', 'SYNAPSE_SERVER_NAME=localhost', '-e', 'SYNAPSE_REPORT_STATS=no', SYNAPSE, 'generate'],
                 stdout=output, stderr=output)
-        config = yaml.safe_load(config_path.read_text(encoding='utf-8-sig'))
-        private_write(config_path, yaml.safe_dump(synapse_config(config)))
+    config = yaml.safe_load(config_path.read_text(encoding='utf-8-sig'))
+    private_write(config_path, yaml.safe_dump(synapse_config(config)))
     run([*args, '-d', '--name', CONTAINER, '-p', '127.0.0.1:18108:8008', SYNAPSE], stdout=subprocess.PIPE)
     wait_http(HS + '/_matrix/client/versions')
 
