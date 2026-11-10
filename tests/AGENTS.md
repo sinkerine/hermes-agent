@@ -77,6 +77,8 @@ mocks, offline protocol checks and model evaluation cannot replace encrypted-roo
 receipts. Report unavailable builds, browser tools, native libraries or live providers as
 blockers and distinguish deterministic evidence from live model quality.
 
+The [Matrix command descriptions harness](../scripts/sandbox/matrix_command_descriptions/README.md) provides an isolated real Synapse and pinned Element browser journey for MSC4391 publication, qualification, permissions, reload and cleanup.
+
 ## Don't fake the host OS
 
 Behaviour that genuinely differs per host is tested ON that host with `@pytest.mark.platforms("linux")`
