@@ -8,7 +8,7 @@ export SB="$PWD/.hermes-sandbox/matrix-commands"
 export HERMES_HOME="$SB/home" HERMES_RUNTIME_DIR="$SB/home/tools"
 export HERMES_PYTHON="$PWD/.venv/bin/python"
 [ -x "$HERMES_PYTHON" ] || { echo "Missing worktree .venv/bin/python" >&2; return 1; }
-export PATH="$SB/bin:$(dirname "$HERMES_PYTHON"):$PATH"
+export PATH="$SB/bin:$(dirname "$HERMES_PYTHON"):/nix/store/dwgyq8kcsd74g5v7il5wng4vjivjyy87-nodejs-26-npm-12/bin:$PATH"
 export RUFF_CACHE_DIR="$SB/cache/ruff" XDG_CACHE_HOME="$SB/cache"
 export TMPDIR="$SB/tmp" TMP="$SB/tmp" TEMP="$SB/tmp"
 export PYTHONPYCACHEPREFIX="$SB/cache/pycache" PNPM_HOME="$SB/cache/pnpm"

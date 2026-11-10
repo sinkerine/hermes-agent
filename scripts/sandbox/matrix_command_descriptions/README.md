@@ -52,14 +52,37 @@ Use the shorthand below after sourcing env.sh:
 h() { python scripts/sandbox/matrix_command_descriptions/harness.py "$@"; }
 h preflight
 h build-element
+# After an interrupted build only: h build-element --resume
 h verify-element
 h up
 h browser --step login-and-dm
 ```
 
-`build-element` installs pnpm 12.11.2 through sandbox Corepack, runs the pinned
-frozen install with scripts ignored, rebuilds the two required git dependencies,
-and builds Element. `up` creates ops (allowlisted, bot power 0) and elsewhere
+`build-element` installs pnpm 12.11.2 through sandbox Corepack and runs the pinned
+frozen install with scripts ignored. Git-hosted Element Call has only a `prepare`
+script; pnpm rebuild cannot recover the source omitted from its installed package.
+The harness downloads the exact Call revision in Element's lockfile, verifies the
+archive's SHA512 integrity against that lock, installs Call with its own unchanged
+frozen lock and runs its declared `build:component`. Those two Call commands alone
+set `MCD_CALL_BUILD=1`, which makes the sandbox pnpm shim pass
+`--pm-on-fail=ignore` to each nested pnpm invocation: Call's nested SDK requests
+pnpm 12.3.4, while this harness deliberately retains pnpm 12.11.2. An env-only
+`npm_config_pm_on_fail` override did not reach the nested check. This approved CLI
+compatibility override does not alter source metadata, package-manager versions
+or lockfiles; the nested SDK revision/integrity and override are retained in the
+build receipt. The marker is scoped to those two child commands only.
+Only the generated `dist` is
+copied into the isolated installed package. A digest receipt prevents overwriting
+or silently adopting existing output. Matrix SDK is rebuilt before Element.
+
+Builds use Node 26 from
+`/nix/store/dwgyq8kcsd74g5v7il5wng4vjivjyy87-nodejs-26-npm-12/bin/node`;
+`env.sh` exposes that path after the sandbox and Python bin directories. Exact
+resolved tools/versions and Call provenance are saved in `element-build-tools.json`
+and `element-call-build.json`. `build-element --resume` retains partial state and
+requires lock, package and workspace inputs to match the pinned Element commit;
+it refuses a completed trusted build. It neither changes lockfiles nor modifies
+the original Element checkout. `up` creates ops (allowlisted, bot power 0) and elsewhere
 (not allowlisted, bot power 100), joins all accounts, then starts the gateway.
 Alice logs into real Element and creates an encrypted direct room through its
 real Matrix client. `01-dm.png` and `rooms.json` record that room.
@@ -141,5 +164,6 @@ The task's serialized `t2-gate.sh` runs shell syntax checks, isolated Python com
 `selftest`, Windows footgun checks and Node syntax validation. `selftest` starts no
 services and covers configuration output, standard padded state keys, dump assertion
 failures, ownership refusal, receipt identity mismatches, private file I/O, nested
-secret redaction and artifact digest changes. Browser and Element runtime assertions
+secret redaction, artifact digest changes, exact dependency selection and rejection
+of archive integrity mismatches. Browser and Element runtime assertions
 are intentionally separate from that offline gate.

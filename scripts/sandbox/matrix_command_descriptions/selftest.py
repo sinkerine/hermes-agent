@@ -8,6 +8,7 @@ from pathlib import Path
 
 from common import BOT, EVENT, OWNER, SB, assert_dump, claim, private_write, read_json, redact, state_key
 from configs import element_config, gateway_config, synapse_config
+from element_build import call_resolution, verify_archive
 from procs import child_environment, verify_identity
 from services import digest_tree
 import hermes_yaml as yaml
@@ -22,6 +23,18 @@ def rejects(fn):
 
 
 def selftest():
+    raw = b'exact dependency archive fixture'
+    integrity = 'sha512-' + base64.b64encode(hashlib.sha512(raw).digest()).decode()
+    verify_archive(raw, integrity)
+    rejects(lambda: verify_archive(raw + b'changed', integrity))
+    resolution = {'tarball': 'https://codeload.github.com/element-hq/element-call/tar.gz/' + 'a' * 40,
+                  'path': '/component', 'integrity': integrity}
+    lock = {'packages': {'@element-hq/element-call-component@pinned': {'resolution': resolution}}}
+    assert call_resolution(yaml.safe_dump(lock)) == resolution
+    assert call_resolution('---\npackages: {}\n---\n' + yaml.safe_dump(lock)) == resolution
+    rejects(lambda: call_resolution('packages: {}'))
+    rejects(lambda: call_resolution(yaml.safe_dump({'packages': {'@element-hq/element-call-component@bad': {
+        'resolution': {**resolution, 'tarball': 'https://example.org/untrusted'}}}})))
     environment = child_environment()
     assert environment['SB'] == str(SB)
     assert 'OPENAI_API_KEY' not in environment and 'MATRIX_ACCESS_TOKEN' not in environment
@@ -74,4 +87,4 @@ def selftest():
         first = digest_tree(unowned)
         private_write(unowned / 'existing', 'changed')
         assert digest_tree(unowned) != first
-    print('selftest: PASS — configs, state keys, dump assertions, unowned-state refusal, receipt identity, private I/O, redaction, artifact digest')
+    print('selftest: PASS — configs, state keys, dump assertions, unowned-state refusal, receipt identity, private I/O, redaction, artifact digest, pinned dependency integrity')

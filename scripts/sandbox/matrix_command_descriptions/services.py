@@ -3,7 +3,6 @@
 import hashlib
 import importlib.util
 import os
-from pathlib import Path
 import shutil
 import socket
 import subprocess
@@ -13,7 +12,7 @@ import uuid
 
 from common import (CHROME, CONTAINER, ELEMENT_CHECKOUT, ELEMENT_SHA, HERE, HS, LABEL,
                     OWNER, ROOT, SB, SYNAPSE, claim, private_write, read_json, request, write_json)
-from configs import bootstrap, configure_gateway, element_config, synapse_config
+from configs import bootstrap, configure_gateway, synapse_config
 from procs import child_environment, launch, stop_receipt
 import hermes_yaml as yaml
 
@@ -89,31 +88,6 @@ def provenance():
 def verify_element():
     assert provenance() == read_json(SB / 'evidence/element-build-provenance.json'), 'Element artifact changed'
     print('Element commit, lock and webapp digests verified.')
-
-
-def build_element():
-    source = SB / 'element-src'
-    assert not source.exists(), 'Refuse to overwrite Element archive'
-    source.mkdir()
-    archive = SB / 'tmp/element.tar'
-    with archive.open('wb') as output:
-        run(['git', '-C', str(ELEMENT_CHECKOUT), 'archive', ELEMENT_SHA], stdout=output)
-    run(['tar', '-xf', str(archive), '-C', str(source)])
-    archive.unlink()
-    with (SB / 'evidence/element-build.log').open('ab') as output:
-        run(['corepack', 'install', '-g', 'pnpm@12.11.2'], stdout=output, stderr=output, timeout=300)
-        private_write(SB / 'bin/pnpm', '#!/usr/bin/env bash\nexec corepack pnpm "$@"\n')
-        (SB / 'bin/pnpm').chmod(0o700)  # windows-footgun: ok — Linux shell shim
-        commands = [
-            ['pnpm', 'install', '--frozen-lockfile', '--ignore-scripts', '--store-dir', str(SB / 'cache/pnpm-store')],
-            ['pnpm', '--filter', 'element-web', 'rebuild', '@element-hq/element-call-component', 'matrix-js-sdk'],
-            ['pnpm', '--config.verifyDepsBeforeRun=false', '--filter', 'element-web', 'run', 'build'],
-        ]
-        for command in commands:
-            run(command, cwd=source, stdout=output, stderr=output, timeout=1800)
-    private_write(source / '.sandbox-commit', ELEMENT_SHA)
-    write_json(source / 'apps/web/webapp/config.json', element_config())
-    write_json(SB / 'evidence/element-build-provenance.json', provenance())
 
 
 def owned_container():

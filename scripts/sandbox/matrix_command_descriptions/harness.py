@@ -11,7 +11,8 @@ import uuid
 from common import (BOT, EVENT, HERE, HOME, SB, assert_dump, entrypoint, private_write,
                     read_json, request, write_json)
 from configs import api, room_id, state
-from services import build_element, down, preflight, restart_gateway, run, up, verify_element
+from element_build import build_element
+from services import down, preflight, restart_gateway, run, up, verify_element
 
 STEPS = ('login-and-dm', 'autocomplete-status', 'run-status', 'ops-empty', 'ops-granted',
          'reload-added', 'reload-removed', 'disabled')
@@ -96,8 +97,10 @@ def conformance():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
-    for name in ('preflight', 'build-element', 'verify-element', 'up', 'conformance', 'selftest'):
+    for name in ('preflight', 'verify-element', 'up', 'conformance', 'selftest'):
         commands.add_parser(name)
+    build = commands.add_parser('build-element')
+    build.add_argument('--resume', action='store_true')
     restart = commands.add_parser('restart-gateway')
     restart.add_argument('--disable', action='store_true')
     shutdown = commands.add_parser('down')
@@ -116,13 +119,15 @@ def main():
     web = commands.add_parser('browser')
     web.add_argument('--step', required=True, choices=STEPS)
     args = parser.parse_args()
-    actions = {'preflight': preflight, 'build-element': build_element, 'verify-element': verify_element,
+    actions = {'preflight': preflight, 'verify-element': verify_element,
                'up': up, 'conformance': conformance}
     if args.command in actions:
         actions[args.command]()
     elif args.command == 'selftest':
         from selftest import selftest
         selftest()
+    elif args.command == 'build-element':
+        build_element(args.resume)
     elif args.command == 'restart-gateway':
         restart_gateway(args.disable)
     elif args.command == 'down':
