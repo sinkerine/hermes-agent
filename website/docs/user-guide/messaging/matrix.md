@@ -337,6 +337,9 @@ Inbound MSC4274 galleries (`dm.filament.gallery` or `m.gallery`) deliver the sha
 caption and attachments together in one agent turn. Hermes loads up to 60 items
 in order, applying the media size limit to each item. If any items cannot be
 loaded, the caption is preserved and a missing-items note identifies them.
+Galleries also accept audio: audio bundled with successfully loaded images or
+video follows normal speech-to-text routing, while audio-only galleries deliver
+audio as file attachments with a note for the agent.
 
 Optional behavior settings in `~/.hermes/config.yaml`:
 
